@@ -2,7 +2,7 @@
 
 A local viewer for architecture decisions and diagrams across your projects.
 
-- **Decisions** are markdown files in a project's `.atlas/` folder: front matter (id, level, status, date, tags, links) plus the reasoning and one optional D2 or Mermaid diagram.
+- **Decisions** are markdown files in a project's `.datlas/` folder: front matter (id, level, status, date, tags, links) plus the reasoning and one optional D2 or Mermaid diagram.
 - **Diagrams** are loose `.d2` / `.mmd` files anywhere in the chosen folders.
 - You choose which folders to read on the home page. The list is stored in this browser's localStorage under `directories`.
 
@@ -19,9 +19,9 @@ Try it: add `examples/scheduler-demo` as a folder, open the project, and pick a 
 
 Install the skill (copy to every Claude config dir you use):
 
-    cp -r skill/atlas ~/.claude/skills/atlas
+    cp -r skill/datlas ~/.claude/skills/datlas
 
-Then say "record this as a story for <feature>". The skill writes `.atlas/<id>.md` with `status: proposed`. Review it in git and change the status yourself.
+Then say "record this as a story for <feature>". The skill writes `.datlas/<id>.md` with `status: proposed`. Review it in git and change the status yourself.
 
 ## Decision file
 
@@ -44,6 +44,6 @@ Then say "record this as a story for <feature>". The skill writes `.atlas/<id>.m
 
 ## Limits
 
-- Reads any `.d2`, `.mmd` or `.atlas/*.md` file under your home folder that is requested; nothing outside it.
+- Reads any `.d2`, `.mmd` or `.datlas/*.md` file under your home folder that is requested; nothing outside it.
 - Scans on every page load. Fine for hundreds of files.
 - No auth. Do not bind it to a non-local address.

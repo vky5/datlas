@@ -1,7 +1,7 @@
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { DIAGRAM_EXT } from "./server";
-import { analyze, readAtlas } from "./atlas";
+import { analyze, readDecisions } from "./decisions";
 import type { Decision, DiagramFile, Problem, ScanResult } from "./types";
 
 const SKIP = new Set(["node_modules", "vendor", "dist", "build", "target", "__pycache__", "venv", "coverage", "bower_components", "Pods"]);
@@ -52,8 +52,8 @@ async function walk(dir: string, proj: Project, depth: number, acc: Acc, run: Ru
   }
   const here = proj;
   const jobs: Promise<void>[] = [];
-  if (entries.some((e) => e.isDirectory() && e.name === ".atlas")) {
-    jobs.push(run(() => readAtlas(path.join(dir, ".atlas"), here, acc.decisions, acc.problems)));
+  if (entries.some((e) => e.isDirectory() && e.name === ".datlas")) {
+    jobs.push(run(() => readDecisions(path.join(dir, ".datlas"), here, acc.decisions, acc.problems)));
   }
   for (const e of entries) {
     const full = path.join(dir, e.name);

@@ -41,11 +41,11 @@ export async function resolveDiagramFile(p: string | null) {
   return file;
 }
 
-// A decision file: a .md directly inside a .atlas folder under home.
-export async function resolveAtlasFile(p: string | null) {
+// A decision file: a .md directly inside a .datlas folder under home.
+export async function resolveDecisionFile(p: string | null) {
   if (!p) throw new HttpError(400, "path is required");
   const file = await resolveInHome(p);
-  if (path.extname(file).toLowerCase() !== ".md" || path.basename(path.dirname(file)) !== ".atlas") {
+  if (path.extname(file).toLowerCase() !== ".md" || path.basename(path.dirname(file)) !== ".datlas") {
     throw new HttpError(400, "Not a decision file");
   }
   return file;

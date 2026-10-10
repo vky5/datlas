@@ -47,7 +47,7 @@ export function FoldersPanel({ ws, onClose, intro = true }: { ws: Workspace; onC
             <h2>Folders</h2>
             {onClose && <button className="btn" onClick={onClose}>Done</button>}
           </div>
-          <p className="muted">datlas reads decisions (<code>.atlas/*.md</code>) and diagram files (<code>.d2</code>, <code>.mmd</code>) from these folders and everything inside them.</p>
+          <p className="muted">datlas reads decisions (<code>.datlas/*.md</code>) and diagram files (<code>.d2</code>, <code>.mmd</code>) from these folders and everything inside them.</p>
         </>
       )}
 

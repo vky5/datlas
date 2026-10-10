@@ -1,5 +1,6 @@
 import { loadEntry } from "./EntryView";
-import { effectiveStatus, type Entry } from "@/lib/workspace";
+import { type Entry } from "@/lib/workspace";
+import { effectiveStatus } from "@/lib/status";
 
 // One clickable line for a decision or diagram file: status dot, title, one line of context.
 export function EntryRow({ entry, sub, selected, nested, aside, onOpen }: {

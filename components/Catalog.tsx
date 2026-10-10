@@ -48,7 +48,7 @@ export function Catalog({ projects, scanning, onProject, onEntry }: {
       </div>
 
       {projects.length === 0 && (
-        <p className="muted">{scanning ? "Scanning your folders…" : "No decisions or diagram files found in your folders yet. Decisions live in a project's .atlas/ folder."}</p>
+        <p className="muted">{scanning ? "Scanning your folders…" : "No decisions or diagram files found in your folders yet. Decisions live in a project's .datlas/ folder."}</p>
       )}
 
       {shownProjects.length > 0 && (

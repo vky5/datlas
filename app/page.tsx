@@ -8,18 +8,20 @@ import { Diagram, Folder, Refresh } from "@/components/icons";
 import { summarizeProjects, useWorkspace } from "@/lib/workspace";
 
 // The URL hash holds where you are: "#project=<root>&entry=<file>". Empty hash = the project list.
-type Route = { project: string | null; entry: string | null };
+// view "graph" shows the project's decision graph instead of its overview (only when no entry is open).
+type Route = { project: string | null; entry: string | null; view?: "graph" };
 function readRoute(): Route {
   const h = location.hash.slice(1);
   if (!h) return { project: null, entry: null };
   if (!h.includes("=")) return { project: null, entry: decodeURIComponent(h) }; // links from before projects existed
   const p = new URLSearchParams(h);
-  return { project: p.get("project"), entry: p.get("entry") };
+  return { project: p.get("project"), entry: p.get("entry"), view: p.get("view") === "graph" ? "graph" : undefined };
 }
 function writeRoute(r: Route, push: boolean) {
   const p = new URLSearchParams();
   if (r.project) p.set("project", r.project);
   if (r.entry) p.set("entry", r.entry);
+  else if (r.view) p.set("view", r.view);
   const url = p.toString() ? "#" + p.toString() : location.pathname;
   if (push) history.pushState(null, "", url);
   else history.replaceState(null, "", url);
@@ -65,6 +67,17 @@ export default function Home() {
     [ws.entries, projectRoot],
   );
 
+  // The current project's overview, or its graph. Replaces the history step: it is a tab, not a new place.
+  const showProject = useCallback(
+    (view?: "graph") => {
+      if (!projectRoot) return;
+      const r: Route = { project: projectRoot, entry: null, view };
+      writeRoute(r, false);
+      setRoute(r);
+    },
+    [projectRoot],
+  );
+
   const needsFolders = ws.loaded && ws.saved.length === 0;
   const lost = projectRoot && !project && !ws.scanning && ws.loaded;
 
@@ -76,7 +89,7 @@ export default function Home() {
           <nav className="crumbs" aria-label="Breadcrumb">
             <button onClick={goHome}>Projects</button>
             <span aria-hidden="true">/</span>
-            <button className="crumb-here" title="This project's systems" onClick={() => { writeRoute({ project: project.root, entry: null }, false); setRoute({ project: project.root, entry: null }); }}>{project.name}</button>
+            <button className="crumb-here" title="This project's systems" onClick={() => showProject()}>{project.name}</button>
             <span className="muted small">{project.where}</span>
           </nav>
         ) : (
@@ -93,7 +106,7 @@ export default function Home() {
       {needsFolders ? (
         <main className="onboard">
           <h1>See your architecture decisions in one place</h1>
-          <p className="muted">Pick the folders that hold your projects. datlas finds decisions in each project&apos;s <code>.atlas/</code> folder and any <code>.d2</code> or <code>.mmd</code> diagram files.</p>
+          <p className="muted">Pick the folders that hold your projects. datlas finds decisions in each project&apos;s <code>.datlas/</code> folder and any <code>.d2</code> or <code>.mmd</code> diagram files.</p>
           <FoldersPanel ws={ws} intro={false} />
         </main>
       ) : project ? (
@@ -103,7 +116,8 @@ export default function Home() {
           problems={ws.problems}
           selected={route.entry}
           onOpen={openEntry}
-          onOverview={() => { writeRoute({ project: project.root, entry: null }, false); setRoute({ project: project.root, entry: null }); }}
+          view={route.view}
+          onView={showProject}
         />
       ) : lost ? (
         <main className="catalog">

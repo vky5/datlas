@@ -1,4 +1,6 @@
-import { isCurrent as current, type Entry } from "./workspace";
+import { type Entry } from "./workspace";
+import { NO_SYSTEM, systemHue } from "./colors";
+import { isCurrent as current } from "./status";
 
 // The project sidebar: one folder per system, current decisions first, history on demand.
 export type Row = { entry: Entry; nested: boolean; note?: string };
@@ -6,6 +8,7 @@ export type Folder = {
   key: string; // stable id for open/closed state: "sys:processors", "sys:processors/build", "unsorted", "files"
   name: string;
   kind: "system" | "unsorted" | "files";
+  hue: string; // the system's colour, shared with the graph
   current: Row[];
   history: Row[];
   subs: Folder[];
@@ -44,11 +47,12 @@ function historyRows(decs: Dec[], all: Dec[]): Row[] {
   });
 }
 
-function folderFor(key: string, name: string, kind: Folder["kind"], decs: Dec[], all: Dec[]): Folder {
+function folderFor(key: string, name: string, kind: Folder["kind"], hue: string, decs: Dec[], all: Dec[]): Folder {
   return {
     key,
     name,
     kind,
+    hue,
     current: arrange(decs.filter(isCurrent), all),
     history: historyRows(decs.filter((e) => !isCurrent(e)), all),
     subs: [],
@@ -65,24 +69,28 @@ export function buildTree(entries: Entry[], allInProject: Entry[]): Folder[] {
     const top = e.d.system.split("/")[0];
     tops.set(top, [...(tops.get(top) ?? []), e]);
   }
+  // Colours follow the alphabetical order of all systems in the project, not just the ones matching a filter.
+  const order = [...new Set(all.map((e) => e.d.system.split("/")[0]).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const folders: Folder[] = [];
   for (const [top, items] of [...tops.entries()].filter(([t]) => t).sort(([a], [b]) => a.localeCompare(b))) {
     const direct = items.filter((e) => !e.d.system.includes("/"));
-    const f = folderFor("sys:" + top, top, "system", direct, all);
+    const hue = systemHue(order.indexOf(top));
+    const f = folderFor("sys:" + top, top, "system", hue, direct, all);
     const subs = new Map<string, Dec[]>();
     for (const e of items.filter((e) => e.d.system.includes("/"))) subs.set(e.d.system, [...(subs.get(e.d.system) ?? []), e]);
     f.subs = [...subs.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([sys, list]) => folderFor("sys:" + sys, sys.split("/")[1], "system", list, all));
+      .map(([sys, list]) => folderFor("sys:" + sys, sys.split("/")[1], "system", hue, list, all));
     folders.push(f);
   }
   const unsorted = tops.get("");
-  if (unsorted?.length) folders.push(folderFor("unsorted", "Unsorted", "unsorted", unsorted, all));
+  if (unsorted?.length) folders.push(folderFor("unsorted", "Unsorted", "unsorted", NO_SYSTEM, unsorted, all));
   if (files.length)
     folders.push({
       key: "files",
       name: "Diagram files",
       kind: "files",
+      hue: NO_SYSTEM,
       current: files.sort((a, b) => (b.kind === "file" && a.kind === "file" ? b.f.mod - a.f.mod : 0)).map((entry) => ({ entry, nested: false })),
       history: [],
       subs: [],

@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Folder } from "./icons";
-import { STATUSES, type Status } from "@/lib/workspace";
+import { STATUSES, type Status } from "@/lib/status";
 
 // The clickable card used for projects (first screen) and systems (project overview).
-export function Card({ title, aside, quiet, onClick, hint, children }: {
+export function Card({ title, aside, quiet, color, onClick, hint, children }: {
   title: string;
+  color?: string; // a system's colour; projects use the accent
   aside?: ReactNode;
   quiet?: boolean;
   onClick: () => void;
@@ -12,7 +13,7 @@ export function Card({ title, aside, quiet, onClick, hint, children }: {
   children: ReactNode;
 }) {
   return (
-    <button className={"card-btn" + (quiet ? " card-quiet" : "")} onClick={onClick} title={hint}>
+    <button className={"card-btn" + (quiet ? " card-quiet" : "") + (color ? " has-hue" : "")} onClick={onClick} title={hint} style={color ? ({ "--hue": color } as CSSProperties) : undefined}>
       <span className="card-top">
         <Folder />
         <b>{title}</b>

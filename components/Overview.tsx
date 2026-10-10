@@ -1,7 +1,8 @@
 "use client";
 
 import { Card, StatusBar } from "./Card";
-import { countStatus, isCurrent, plural, type Entry, type Project } from "@/lib/workspace";
+import { plural, type Entry, type Project } from "@/lib/workspace";
+import { countStatus, isCurrent } from "@/lib/status";
 import { folderEntries, type Folder } from "@/lib/tree";
 
 // What a project contains, at a glance: one card per system.
@@ -28,7 +29,7 @@ export function Overview({ project, folders, onFolder }: { project: Project; fol
           const stories = live.filter((e) => e.d.level === "story").length;
           const latest = [...(live.length ? live : items)].sort((a, b) => b.date.localeCompare(a.date))[0];
           return (
-            <Card key={f.key} title={f.name} quiet={f.kind !== "system"} onClick={() => onFolder(f)}>
+            <Card key={f.key} title={f.name} quiet={f.kind !== "system"} color={f.hue} onClick={() => onFolder(f)}>
               <span className="card-counts">
                 {f.kind === "files" ? (
                   <span>{plural(items.length, "file")}</span>

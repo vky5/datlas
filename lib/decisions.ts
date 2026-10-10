@@ -95,7 +95,7 @@ async function parseDecision(file: string, proj: Project, problems: Problem[]): 
   };
 }
 
-export async function readAtlas(dir: string, proj: Project, out: Decision[], problems: Problem[]) {
+export async function readDecisions(dir: string, proj: Project, out: Decision[], problems: Problem[]) {
   let entries;
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
@@ -147,6 +147,24 @@ export function analyze(decisions: Decision[], problems: Problem[]) {
         }
       }
     }
+    // A replaces B replaces A would make the graph and "replaced by" meaningless.
+    const seen = new Set<string>();
+    for (const start of items) {
+      const chain = [start.id];
+      let cur = start;
+      while (cur.supersedes.length && !seen.has(cur.id)) {
+        const next = byId.get(cur.supersedes[0]);
+        if (!next) break;
+        if (chain.includes(next.id)) {
+          problems.push({ path: start.path, project: start.project, severity: "error", message: `Replacement loop: ${[...chain, next.id].join(" → ")}` });
+          break;
+        }
+        chain.push(next.id);
+        cur = next;
+      }
+      chain.forEach((id) => seen.add(id));
+    }
+
     const systems = [...new Set(items.map((d) => d.system).filter(Boolean))];
     for (let i = 0; i < systems.length; i++)
       for (let j = i + 1; j < systems.length; j++)

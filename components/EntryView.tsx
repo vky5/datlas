@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { DiagramCanvas } from "./DiagramCanvas";
 import { External } from "./icons";
-import { ago, bytes, effectiveStatus, isCurrent, type Entry } from "@/lib/workspace";
+import { ago, bytes, type Entry } from "@/lib/workspace";
+import { effectiveStatus, isCurrent } from "@/lib/status";
 import type { Decision } from "@/lib/types";
 
 type Loaded = {

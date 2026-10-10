@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { EntryRow, describe } from "./EntryRow";
 import { EntryView } from "./EntryView";
+import { GraphView } from "./GraphView";
 import { Overview } from "./Overview";
 import { Chevron, Search } from "./icons";
 import { base, plural, type Entry, type Project } from "@/lib/workspace";
@@ -20,13 +21,14 @@ function pathTo(folders: Folder[], key: string): string[] {
 }
 
 // One project: a tree of systems on the left, the overview or one decision on the right.
-export function ProjectView({ project, all, problems, selected, onOpen, onOverview }: {
+export function ProjectView({ project, all, problems, selected, view, onOpen, onView }: {
   project: Project;
   all: Entry[];
   problems: Problem[];
   selected: string | null;
+  view?: "graph";
   onOpen: (key: string) => void;
-  onOverview: () => void;
+  onView: (view?: "graph") => void;
 }) {
   const [tag, setTag] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -177,9 +179,10 @@ export function ProjectView({ project, all, problems, selected, onOpen, onOvervi
       </ul>
     );
     return (
-      <section key={f.key} className={"folder" + (sub ? " sub" : "") + (opened ? "" : " closed") + (f.kind !== "system" ? " quiet" : "")}>
+      <section key={f.key} className={"folder" + (sub ? " sub" : "") + (opened ? "" : " closed") + (f.kind !== "system" ? " quiet" : "")} style={{ "--hue": f.hue } as CSSProperties}>
         <button className="folder-head" onClick={() => toggle(f.key)} aria-expanded={opened} disabled={filtering}>
           <Chevron />
+          <span className="swatch" aria-hidden="true" />
           <span className="grow">{f.name}</span>
           <span className="count">{total}</span>
         </button>
@@ -202,6 +205,10 @@ export function ProjectView({ project, all, problems, selected, onOpen, onOvervi
   return (
     <div className="body">
       <aside className="list">
+        <div className="views" role="tablist" aria-label="Project view">
+          <button role="tab" aria-selected={!current && !view} className={!current && !view ? "on" : ""} onClick={() => onView()}>Overview</button>
+          <button role="tab" aria-selected={!current && view === "graph"} className={!current && view === "graph" ? "on" : ""} onClick={() => onView("graph")}>Graph</button>
+        </div>
         <label className="search">
           <Search />
           <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${project.name}, or #tag`} aria-label={`Search ${project.name}`} />
@@ -236,7 +243,7 @@ export function ProjectView({ project, all, problems, selected, onOpen, onOvervi
                 {projectProblems.map((p, i) => (
                   <li key={i} className={p.severity}>
                     {p.message}
-                    <small>.atlas/{base(p.path)}</small>
+                    <small>.datlas/{base(p.path)}</small>
                   </li>
                 ))}
               </ul>
@@ -247,7 +254,14 @@ export function ProjectView({ project, all, problems, selected, onOpen, onOvervi
 
       <main className="view" ref={viewRef}>
         {current ? (
-          <EntryView entry={current} all={all} onOpen={onOpen} onTag={(t) => { setQ(""); setTag(t); }} onSystem={onOverview} />
+          <EntryView entry={current} all={all} onOpen={onOpen} onTag={(t) => { setQ(""); setTag(t); }} onSystem={() => onView()} />
+        ) : view === "graph" ? (
+          <GraphView
+            project={project}
+            tag={activeTag}
+            highlight={filtering ? matches.flatMap((e) => (e.kind === "decision" ? [e.d.id] : [])) : null}
+            onOpen={onOpen}
+          />
         ) : (
           <Overview project={project} folders={fullTree} onFolder={openFolder} />
         )}
