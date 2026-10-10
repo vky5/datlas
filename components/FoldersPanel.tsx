@@ -63,6 +63,7 @@ export function FoldersPanel({ ws, onClose, intro = true }: { ws: Workspace; onC
                   <small className={s && !s.ok ? "error-text" : "muted"}>
                     {!s ? "scanning…" : !s.ok ? s.error : `${s.decisions.length} decision${s.decisions.length === 1 ? "" : "s"} · ${s.diagrams.length} diagram file${s.diagrams.length === 1 ? "" : "s"}`}
                   </small>
+                  {s?.notes?.map((n) => <small key={n} className="warn-text">{n}</small>)}
                 </div>
                 <button className="icon" onClick={() => ws.remove(d)} aria-label={`Stop reading ${d}`} title="Remove"><Trash /></button>
               </li>

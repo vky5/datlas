@@ -42,7 +42,6 @@ export function Catalog({ projects, scanning, onProject, onEntry }: {
         <label className="search wide">
           <Search />
           <input ref={ref} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search projects and decisions" aria-label="Search projects and decisions" />
-          <kbd>/</kbd>
         </label>
       </div>
 

@@ -89,7 +89,6 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
         <label className="search">
           <Search />
           <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${project.name}`} aria-label={`Search ${project.name}`} />
-          <kbd>/</kbd>
         </label>
         {tags.length > 0 && (
           <div className="tags">

@@ -6,8 +6,8 @@ import type { Decision, DiagramFile, Problem, ScanResult } from "./types";
 
 const SKIP = new Set(["node_modules", "vendor", "dist", "build", "target", "__pycache__", "venv", "coverage", "bower_components", "Pods"]);
 const PARALLEL = 32; // open folders at once; more gains little and risks running out of file handles
-const MAX_FILES = 3000;
-const MAX_DEPTH = 10;
+const MAX_FILES = 10000; // diagram files per saved folder
+const MAX_DEPTH = 25; // folder levels below the saved folder
 
 type Project = { root: string; name: string; branch: string | null };
 
@@ -35,7 +35,7 @@ async function firstNote(file: string, format: "d2" | "mmd"): Promise<string> {
   return "";
 }
 
-type Acc = { files: DiagramFile[]; decisions: Decision[]; problems: Problem[] };
+type Acc = { files: DiagramFile[]; decisions: Decision[]; problems: Problem[]; tooDeep: string[]; full: boolean };
 type Run = <T>(fn: () => Promise<T>) => Promise<T>;
 
 // Caps how many filesystem calls run at once.
@@ -56,7 +56,14 @@ function limiter(n: number): Run {
 
 // Sibling folders are walked in parallel. A slot is held only for the readdir/stat call, never while recursing.
 async function walk(dir: string, proj: Project, depth: number, acc: Acc, run: Run): Promise<void> {
-  if (acc.files.length >= MAX_FILES || depth > MAX_DEPTH) return;
+  if (acc.files.length >= MAX_FILES) {
+    acc.full = true;
+    return;
+  }
+  if (depth > MAX_DEPTH) {
+    if (acc.tooDeep.length < 3) acc.tooDeep.push(dir);
+    return;
+  }
   // Synchronous on purpose: thousands of tiny awaits cost far more than the calls themselves (about 4x in dev mode).
   let entries;
   try {
@@ -91,7 +98,11 @@ async function walk(dir: string, proj: Project, depth: number, acc: Acc, run: Ru
           } catch {
             return;
           }
-          if (!st || acc.files.length >= MAX_FILES) return;
+          if (!st) return;
+          if (acc.files.length >= MAX_FILES) {
+            acc.full = true;
+            return;
+          }
           acc.files.push({
             path: full,
             rel: path.relative(here.root, full),
@@ -112,11 +123,14 @@ async function walk(dir: string, proj: Project, depth: number, acc: Acc, run: Ru
 }
 
 export async function scanDir(dir: string): Promise<ScanResult> {
-  const acc: Acc = { files: [], decisions: [], problems: [] };
+  const acc: Acc = { files: [], decisions: [], problems: [], tooDeep: [], full: false };
   const isGit = await fs.stat(path.join(dir, ".git")).then(() => true, () => false);
   await walk(dir, { root: dir, name: path.basename(dir), branch: isGit ? await readBranch(dir) : null }, 0, acc, limiter(PARALLEL));
   acc.files.sort((a, b) => b.mod - a.mod);
   acc.decisions.sort((a, b) => a.path.localeCompare(b.path)); // parallel walk finishes in any order; keep problems stable
   analyze(acc.decisions, acc.problems);
-  return { path: dir, ok: true, isGit, scannedAt: Date.now(), diagrams: acc.files, decisions: acc.decisions, problems: acc.problems };
+  const notes: string[] = [];
+  if (acc.full) notes.push(`Stopped after ${MAX_FILES.toLocaleString()} diagram files; the rest of this folder was skipped.`);
+  if (acc.tooDeep.length) notes.push(`Skipped folders more than ${MAX_DEPTH} levels deep, e.g. ${acc.tooDeep[0]}`);
+  return { path: dir, ok: true, isGit, scannedAt: Date.now(), diagrams: acc.files, decisions: acc.decisions, problems: acc.problems, notes };
 }

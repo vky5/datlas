@@ -20,6 +20,7 @@ export type ScanResult = {
   diagrams: DiagramFile[];
   decisions: Decision[];
   problems: Problem[];
+  notes: string[]; // the scan stopped early somewhere; shown next to the folder
 };
 
 export type Decision = {

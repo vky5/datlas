@@ -27,7 +27,7 @@ export async function POST(request: Request) {
           return await scanShared(await resolveInHome(d));
         } catch (e) {
           const message = e instanceof HttpError ? e.message : "Cannot read this folder";
-          return { path: d, ok: false, error: message, isGit: false, scannedAt: Date.now(), diagrams: [], decisions: [], problems: [] };
+          return { path: d, ok: false, error: message, isGit: false, scannedAt: Date.now(), diagrams: [], decisions: [], problems: [], notes: [] };
         }
       }),
     );

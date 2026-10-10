@@ -1,7 +1,6 @@
-import { execFile } from "node:child_process";
 import path from "node:path";
 import { fail, resolveDiagramFile, HttpError } from "@/lib/server";
-import { D2_ARGS } from "@/lib/render";
+import { renderD2File } from "@/lib/render";
 
 // D2 files only. Mermaid is rendered in the browser.
 export async function GET(request: Request) {
@@ -13,14 +12,10 @@ export async function GET(request: Request) {
     return fail(e);
   }
   const started = Date.now();
-  return new Promise<Response>((resolve) => {
-    execFile("d2", [...D2_ARGS, file, "-"], { maxBuffer: 50e6, timeout: 30000 }, (err, stdout, stderr) => {
-      if (err) {
-        const missing = (err as NodeJS.ErrnoException).code === "ENOENT";
-        resolve(Response.json({ error: missing ? "d2 is not installed or not on PATH" : String(stderr || err.message) }, { status: 422 }));
-      } else {
-        resolve(new Response(stdout, { headers: { "Content-Type": "image/svg+xml", "X-Compile-Ms": String(Date.now() - started) } }));
-      }
-    });
-  });
+  try {
+    const svg = await renderD2File(file);
+    return new Response(svg, { headers: { "Content-Type": "image/svg+xml", "X-Compile-Ms": String(Date.now() - started) } });
+  } catch (e) {
+    return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 422 });
+  }
 }
