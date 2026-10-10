@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useEffect, useState } from "react";
-import { Folder, Search } from "./icons";
-import { ago, effectiveStatus, type Entry, type Project } from "@/lib/workspace";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Card, StatusBar } from "./Card";
+import { EntryRow, describe } from "./EntryRow";
+import { Search } from "./icons";
+import { ago, plural, type Entry, type Project } from "@/lib/workspace";
 
 // First screen: one card per project that has something in it, plus search across every project.
 export function Catalog({ projects, scanning, onProject, onEntry }: {
@@ -51,32 +53,23 @@ export function Catalog({ projects, scanning, onProject, onEntry }: {
 
       {shownProjects.length > 0 && (
         <div className="cards">
-          {shownProjects.map((p) => (
-            <button key={p.root} className="card-btn" onClick={() => onProject(p.root)} title={p.root}>
-              <span className="card-top">
-                <Folder />
-                <b>{p.name}</b>
-                <span className="muted small">{ago(p.lastMod)}</span>
-              </span>
-              <span className="card-where">{p.where}</span>
-              <span className="card-counts">
-                {p.decisions > 0 && <span>{p.decisions} decision{p.decisions === 1 ? "" : "s"}</span>}
-                {p.files > 0 && <span>{p.files} diagram file{p.files === 1 ? "" : "s"}</span>}
-              </span>
-              {p.decisions > 0 && (
-                <span className="status-bar" aria-hidden="true">
-                  {(["accepted", "proposed", "rejected", "superseded"] as const).map((s) =>
-                    p.status[s] ? <i key={s} className={s} style={{ flex: p.status[s] }} /> : null,
-                  )}
+          {shownProjects.map((p) => {
+            const systems = new Set(p.entries.flatMap((e) => (e.kind === "decision" ? [e.d.system.split("/")[0] || "unsorted"] : []))).size;
+            return (
+              <Card key={p.root} title={p.name} hint={p.root} aside={<span className="muted small">{ago(p.lastMod)}</span>} onClick={() => onProject(p.root)}>
+                <span className="card-where">{p.where}</span>
+                <span className="card-counts">
+                  {p.decisions > 0 && <span>{plural(systems, "system")}</span>}
+                  {p.decisions > 0 && <span>{plural(p.decisions, "decision")}</span>}
+                  {p.files > 0 && <span>{plural(p.files, "diagram file")}</span>}
                 </span>
-              )}
-              {p.latest && (
-                <span className="card-latest">
-                  <span className="muted">Latest:</span> {p.latest.title}
-                </span>
-              )}
-            </button>
-          ))}
+                {p.decisions > 0 && <StatusBar counts={p.status} />}
+                {p.latest && (
+                  <span className="card-latest"><span className="muted">Latest:</span> {p.latest.title}</span>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
       {needle && shownProjects.length === 0 && hits.length === 0 && <p className="muted">Nothing matches “{q}”.</p>}
@@ -85,21 +78,16 @@ export function Catalog({ projects, scanning, onProject, onEntry }: {
         <section className="hits">
           <h2>Decisions and diagrams matching “{q}”</h2>
           <ul>
-            {hits.map(({ p, e }) => {
-              const st = e.kind === "decision" ? effectiveStatus(e.d) : null;
-              return (
-                <li key={e.key}>
-                  <button className="row" onClick={() => onEntry(p.root, e.key)}>
-                    {e.kind === "decision" ? <span className={"seq " + st}>{e.d.seq}</span> : <span className="seq file">·</span>}
-                    <span className="row-main">
-                      <span className="row-title">{e.title}</span>
-                      <span className="row-sub">{p.name} · {e.kind === "decision" ? `${e.d.level === "story" ? "Story" : "Detail"} · ${st}` : "diagram file"}</span>
-                    </span>
-                    <span className="row-date">{e.date}</span>
-                  </button>
-                </li>
-              );
-            })}
+            {hits.map(({ p, e }) => (
+              <li key={e.key}>
+                <EntryRow
+                  entry={e}
+                  sub={`${p.name} · ${describe(e)}`}
+                  aside={e.kind === "decision" ? e.d.system || "unsorted" : undefined}
+                  onOpen={(key) => onEntry(p.root, key)}
+                />
+              </li>
+            ))}
           </ul>
         </section>
       )}

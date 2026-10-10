@@ -11,10 +11,9 @@ export async function GET(request: Request) {
   } catch (e) {
     return fail(e);
   }
-  const started = Date.now();
   try {
     const svg = await renderD2File(file);
-    return new Response(svg, { headers: { "Content-Type": "image/svg+xml", "X-Compile-Ms": String(Date.now() - started) } });
+    return new Response(svg, { headers: { "Content-Type": "image/svg+xml" } });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 422 });
   }

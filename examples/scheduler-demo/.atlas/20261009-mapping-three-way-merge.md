@@ -2,6 +2,7 @@
 id: 20261009-mapping-three-way-merge
 title: Two writers update mapping.yaml with a three-way merge
 level: detail
+system: scheduler
 status: accepted
 date: 2026-10-09
 tags: [scheduler, config-sync]

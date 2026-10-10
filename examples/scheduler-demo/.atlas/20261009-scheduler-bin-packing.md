@@ -2,6 +2,7 @@
 id: 20261009-scheduler-bin-packing
 title: Bin-packing placement
 level: story
+system: scheduler
 status: rejected
 date: 2026-10-09
 tags: [scheduler]

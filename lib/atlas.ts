@@ -68,6 +68,9 @@ async function parseDecision(file: string, proj: Project, problems: Problem[]): 
   if (!STATUSES.includes(status as never)) bad(`${id}: status must be proposed, accepted or rejected, got "${status}"`);
   if (!/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?$/.test(date)) bad(`${id}: date must be YYYY-MM-DD or YYYY-MM-DD HH:MM, got "${date}"`);
   if (!m.title) bad(`${id}: missing title`, "warning");
+  const system = m.system == null ? "" : String(m.system).trim().toLowerCase().replace(/\s+/g, "-").replace(/^\/+|\/+$/g, "");
+  if (!system) bad(`${id}: no system, so it shows under Unsorted. Add a line like "system: processors".`, "warning");
+  else if (system.split("/").length > 2) bad(`${id}: system "${system}" has more than one "/"; only one sub-level is shown`, "warning");
   const tags = list(m.tags).map((t) => t.trim().toLowerCase()).filter(Boolean);
   if (tags.length === 0) bad(`${id}: no tags, so it appears in no timeline`, "warning");
   const realizes = list(m.realizes);
@@ -77,15 +80,14 @@ async function parseDecision(file: string, proj: Project, problems: Problem[]): 
     id,
     title: m.title ? String(m.title) : id,
     level: LEVELS.includes(level as never) ? (level as Decision["level"]) : "story",
+    system: system.split("/").slice(0, 2).join("/"),
     status: STATUSES.includes(status as never) ? (status as Decision["status"]) : "proposed",
     date,
-    seq: 0,
     tags,
     realizes,
     supersedes: list(m.supersedes),
     supersededBy: [],
     detailedBy: [],
-    hasDiagram: FENCE.test(doc.body),
     mod,
     path: file,
     projectRoot: proj.root,
@@ -145,27 +147,13 @@ export function analyze(decisions: Decision[], problems: Problem[]) {
         }
       }
     }
-    // Number decisions oldest first. Same timestamp: a story comes before its details,
-    // a replaced decision before its replacement, then file modified time.
-    const order = [...items].sort((a, b) => {
-      const byDate = a.date.localeCompare(b.date);
-      if (byDate) return byDate;
-      if (a.realizes.includes(b.id) || a.supersedes.includes(b.id)) return 1;
-      if (b.realizes.includes(a.id) || b.supersedes.includes(a.id)) return -1;
-      return a.mod - b.mod;
-    });
-    order.forEach((d, i) => (d.seq = i + 1));
-    // Decisions on the same day with no time can't be ordered reliably; name them.
-    const byDay = new Map<string, Decision[]>();
-    for (const d of order) if (d.date.length === 10) byDay.set(d.date, [...(byDay.get(d.date) ?? []), d]);
-    for (const group of byDay.values())
-      if (group.length > 1)
-        problems.push({
-          path: group[0].path,
-          project: group[0].project,
-          severity: "warning",
-          message: `${group.map((d) => "#" + d.seq).join(", ")} have the same date and no time, so their order is a guess. Add a time to each date, like ${group[0].date} 14:30.`,
-        });
+    const systems = [...new Set(items.map((d) => d.system).filter(Boolean))];
+    for (let i = 0; i < systems.length; i++)
+      for (let j = i + 1; j < systems.length; j++)
+        if (close(systems[i], systems[j])) {
+          const first = items.find((d) => d.system === systems[j])!;
+          problems.push({ path: first.path, project: first.project, severity: "warning", message: `Systems "${systems[i]}" and "${systems[j]}" look like the same thing` });
+        }
 
     const tags = [...new Set(items.flatMap((d) => d.tags))];
     for (let i = 0; i < tags.length; i++)

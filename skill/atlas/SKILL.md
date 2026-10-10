@@ -11,8 +11,9 @@ Only run when the user explicitly asks to record something. Never record on your
 ## 1. Look before writing
 
 - Find the repo root (nearest folder with `.git`). Decisions live in `<repo>/.atlas/`. Create the folder if missing.
-- List what exists: `grep -h -E "^(id|tags|level|status):" <repo>/.atlas/*.md`
-- Reuse an existing tag when the feature already has one. Do not invent a near-duplicate ("scheduler" vs "schedulers"). If unsure, ask.
+- List what exists: `grep -h -E "^(id|system|tags|level|status):" <repo>/.atlas/*.md`
+- **Pick the system** (required): the part of the product this decision lives in, e.g. `processors`, `scheduler`, `config`. One per decision. Reuse an existing system name exactly; at most one sub-level (`processors/build`). If no existing system fits, ask the user before creating one.
+- **Tags are for cross-cutting concerns**, not for the system: things that span systems, like `config-writes` or `security`. Reuse existing tags; do not invent near-duplicates ("scheduler" vs "schedulers"). Zero or more.
 
 ## 2. Pick the level
 
@@ -30,9 +31,10 @@ Get the timestamp with `date "+%Y-%m-%d %H:%M"`; the viewer numbers decisions (#
 id: YYYYMMDD-short-slug
 title: One line, says what was decided
 level: story            # story | detail
+system: processors      # required: where this lives; reuse existing names; one optional sub-level (processors/build)
 status: proposed        # proposed | accepted | rejected
 date: YYYY-MM-DD HH:MM   # local time, from `date "+%Y-%m-%d %H:%M"`
-tags: [feature-name]
+tags: [concern]         # cross-cutting concerns only; may be empty
 realizes: []            # detail only: story ids
 supersedes: []          # ids this decision replaces
 ---

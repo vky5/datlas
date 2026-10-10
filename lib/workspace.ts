@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Decision, DiagramFile, Problem, ScanResult } from "./types";
 
-export const STORAGE_KEY = "directories";
+const STORAGE_KEY = "directories";
 const SCAN_CACHE = "scanCache";
 
 function readSaved(): string[] {
@@ -21,7 +21,6 @@ export function useWorkspace() {
   const [scans, setScans] = useState<Record<string, ScanResult>>({});
   const [scanning, setScanning] = useState(false);
   const [d2, setD2] = useState<string | null | undefined>(undefined);
-  const [storageError, setStorageError] = useState(false);
 
   useEffect(() => {
     setSaved(readSaved());
@@ -68,10 +67,7 @@ export function useWorkspace() {
     setSaved(next);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      setStorageError(false);
-    } catch {
-      setStorageError(true);
-    }
+    } catch {} // storage blocked: choices still work until reload
   };
 
   const diagrams: DiagramFile[] = useMemo(
@@ -98,7 +94,7 @@ export function useWorkspace() {
   );
 
   return {
-    saved, loaded, scans, scanning, diagrams, decisions, problems, entries, d2, storageError,
+    saved, loaded, scans, scanning, diagrams, decisions, problems, entries, d2,
     add: (dir: string) => !saved.includes(dir) && persist([...saved, dir]),
     remove: (dir: string) => persist(saved.filter((d) => d !== dir)),
     rescan: () => rescan(saved),
@@ -122,16 +118,6 @@ export function ago(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export function modified(ms: number): string {
-  if (!ms) return "";
-  const d = new Date(ms);
-  const t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-  const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(ms).setHours(0, 0, 0, 0)) / 864e5);
-  if (days === 0) return `Modified today, ${t}`;
-  if (days === 1) return `Modified yesterday, ${t}`;
-  return `Modified ${d.toLocaleDateString(undefined, { month: "short", day: "2-digit" })}, ${t}`;
-}
-
 export function bytes(n: number): string {
   return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`;
 }
@@ -143,6 +129,21 @@ export function effectiveStatus(d: Decision): Decision["status"] | "superseded" 
   return d.status === "accepted" && d.supersededBy.length > 0 ? "superseded" : d.status;
 }
 
+export type Status = ReturnType<typeof effectiveStatus>;
+export const STATUSES: Status[] = ["accepted", "proposed", "rejected", "superseded"];
+
+// Current = still how things work (accepted) or about to (proposed). Rejected and replaced are history.
+export const isCurrent = (d: Decision) => ["accepted", "proposed"].includes(effectiveStatus(d));
+
+export function countStatus(decisions: Decision[]): Record<Status, number> {
+  const out = { accepted: 0, proposed: 0, rejected: 0, superseded: 0 };
+  for (const d of decisions) out[effectiveStatus(d)]++;
+  return out;
+}
+
+// plural(3, "story", "stories") -> "3 stories"
+export const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+
 export type Project = {
   root: string;
   name: string;
@@ -152,7 +153,7 @@ export type Project = {
   files: number;
   lastMod: number;
   latest: Entry | null; // newest decision, or newest file if there are no decisions
-  status: Record<ReturnType<typeof effectiveStatus>, number>;
+  status: Record<Status, number>;
 };
 
 const entryMod = (e: Entry) => (e.kind === "decision" ? e.d.mod : e.f.mod);
@@ -166,8 +167,7 @@ export function summarizeProjects(entries: Entry[], saved: string[]): Project[] 
       const container = saved.filter((s) => root === s || root.startsWith(s + "/")).sort((a, b) => b.length - a.length)[0];
       const where = container ? (root === container ? base(root) : base(container) + root.slice(container.length)) : root;
       const decs = items.filter((e): e is Entry & { kind: "decision" } => e.kind === "decision");
-      const status = { accepted: 0, proposed: 0, rejected: 0, superseded: 0 };
-      for (const e of decs) status[effectiveStatus(e.d)]++;
+      const status = countStatus(decs.map((e) => e.d));
       const pool = decs.length ? decs : items;
       const latest = pool.reduce<Entry | null>((a, e) => (!a || entryMod(e) > entryMod(a) ? e : a), null);
       return {

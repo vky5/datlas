@@ -12,17 +12,14 @@ export async function GET(request: Request) {
     const { lang, source, text } = extractDiagram(doc.body);
     let svg: string | null = null;
     let error: string | null = null;
-    let ms: number | null = null;
     if (lang === "d2" && source) {
-      const started = Date.now();
       try {
         svg = await renderD2Source(source);
-        ms = Date.now() - started;
       } catch (e) {
         error = e instanceof Error ? e.message : String(e);
       }
     }
-    return Response.json({ text, lang, source, svg, error, ms });
+    return Response.json({ text, lang, source, svg, error });
   } catch (e) {
     return fail(e);
   }

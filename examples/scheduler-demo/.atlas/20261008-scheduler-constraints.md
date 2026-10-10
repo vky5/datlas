@@ -2,6 +2,7 @@
 id: 20261008-scheduler-constraints
 title: Scheduler filters workers by constraints before placing
 level: story
+system: scheduler
 status: accepted
 date: 2026-10-08
 tags: [scheduler]

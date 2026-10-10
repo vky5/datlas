@@ -13,7 +13,7 @@ A local viewer for architecture decisions and diagrams across your projects.
 
 Needs the `d2` binary on PATH for D2 diagrams. Mermaid renders in the browser.
 
-Try it: add `examples/scheduler-demo` as a folder, then click `#scheduler` in the list to read that feature's history.
+Try it: add `examples/scheduler-demo` as a folder, open the project, and pick a system from the overview.
 
 ## Recording decisions with Claude Code
 
@@ -29,9 +29,10 @@ Then say "record this as a story for <feature>". The skill writes `.atlas/<id>.m
     id: 20261008-scheduler-constraints   # YYYYMMDD-slug, never changes
     title: Scheduler filters workers by constraints
     level: story                          # story (high level) | detail (implementation)
+    system: scheduler                     # where it lives; one folder per system (one sub-level: scheduler/placement)
     status: accepted                      # proposed | accepted | rejected
-    date: 2026-10-08 14:30                # time optional; orders same-day decisions (#1, #2…)
-    tags: [scheduler]                     # features; a timeline per tag
+    date: 2026-10-08 14:30                # time optional; orders decisions inside a system
+    tags: [placement]                     # cross-cutting concerns; filter the tree by one tag
     realizes: []                          # detail only: the story ids it implements
     supersedes: [20261001-scheduler-random]
     ---

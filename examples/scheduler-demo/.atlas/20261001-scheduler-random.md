@@ -2,6 +2,7 @@
 id: 20261001-scheduler-random
 title: Scheduler places replicas on random workers
 level: story
+system: scheduler
 status: accepted
 date: 2026-10-01
 tags: [scheduler]

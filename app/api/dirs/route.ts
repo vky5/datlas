@@ -30,16 +30,14 @@ export async function GET(request: Request) {
         .filter((e) => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules")
         .map(async (e) => {
           const full = path.join(dir, e.name);
-          const st = await fs.stat(full).catch(() => null);
           const isGit = await fs.stat(path.join(full, ".git")).then(() => true, () => false);
-          return { name: e.name, path: full, mtime: st?.mtimeMs ?? 0, isGit };
+          return { name: e.name, path: full, isGit };
         }),
     )
   ).sort((a, b) => a.name.localeCompare(b.name));
 
   return Response.json({
     path: dir,
-    home,
     parent: dir === home ? null : path.dirname(dir),
     dirs,
   });

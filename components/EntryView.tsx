@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { DiagramCanvas } from "./DiagramCanvas";
 import { External } from "./icons";
-import { ago, bytes, effectiveStatus, type Entry } from "@/lib/workspace";
+import { ago, bytes, effectiveStatus, isCurrent, type Entry } from "@/lib/workspace";
 import type { Decision } from "@/lib/types";
 
 type Loaded = {
@@ -13,7 +13,6 @@ type Loaded = {
   svg: string | null;
   source: string | null;
   error: string | null;
-  ms: number | null;
 };
 
 async function fetchEntry(e: Entry): Promise<Loaded> {
@@ -22,19 +21,19 @@ async function fetchEntry(e: Entry): Promise<Loaded> {
     const res = await fetch(`/api/decision?path=${q}`);
     const b = await res.json();
     if (!res.ok) throw new Error(b.error ?? "Could not read this decision");
-    return { text: b.text, lang: b.lang, svg: b.svg, source: b.source, error: b.error, ms: b.ms };
+    return { text: b.text, lang: b.lang, svg: b.svg, source: b.source, error: b.error };
   }
   if (e.f.format === "d2") {
     const res = await fetch(`/api/render?path=${q}`);
     if (!res.ok) {
       const b = await res.json().catch(() => ({ error: "Render failed" }));
-      return { text: null, lang: "d2", svg: null, source: null, error: b.error, ms: null };
+      return { text: null, lang: "d2", svg: null, source: null, error: b.error };
     }
-    return { text: null, lang: "d2", svg: await res.text(), source: null, error: null, ms: Number(res.headers.get("X-Compile-Ms")) || null };
+    return { text: null, lang: "d2", svg: await res.text(), source: null, error: null };
   }
   const res = await fetch(`/api/source?path=${q}`);
   if (!res.ok) throw new Error("Could not read this file");
-  return { text: null, lang: "mermaid", svg: null, source: await res.text(), error: null, ms: null };
+  return { text: null, lang: "mermaid", svg: null, source: await res.text(), error: null };
 }
 
 // Keyed by path + modified time, so an edited file is fetched again and an unchanged one opens instantly.
@@ -77,7 +76,7 @@ const STATUS_TEXT: Record<ReturnType<typeof effectiveStatus>, string> = {
   superseded: "Superseded",
 };
 
-export function EntryView({ entry, all, onOpen, onTag }: { entry: Entry; all: Entry[]; onOpen: (key: string) => void; onTag: (t: string) => void }) {
+export function EntryView({ entry, all, onOpen, onTag, onSystem }: { entry: Entry; all: Entry[]; onOpen: (key: string) => void; onTag: (t: string) => void; onSystem?: () => void }) {
   // The previous entry's body stays (dimmed) until the new one arrives, so the pane never flashes empty.
   const [data, setData] = useState<{ key: string; loaded: Loaded } | null>(null);
   const [fail, setFail] = useState<string | null>(null);
@@ -108,18 +107,37 @@ export function EntryView({ entry, all, onOpen, onTag }: { entry: Entry; all: En
   const d: Decision | null = entry.kind === "decision" ? entry.d : null;
   const peers = all.filter((x) => x.projectRoot === entry.projectRoot);
   const status = d ? effectiveStatus(d) : null;
+  // Other current decisions with the same tag, outside the links already shown above.
+  const linked = new Set(d ? [d.id, ...d.realizes, ...d.detailedBy, ...d.supersedes, ...d.supersededBy] : []);
+  const shared: [string, string[]][] = d
+    ? entry.tags
+        .map((t): [string, string[]] => [
+          t,
+          peers
+            .filter((x): x is Entry & { kind: "decision" } => x.kind === "decision" && x.tags.includes(t) && !linked.has(x.d.id))
+            .filter((x) => isCurrent(x.d))
+            .slice(0, 6)
+            .map((x) => x.d.id),
+        ])
+        .filter(([, ids]) => ids.length > 0)
+    : [];
   const stale = !data || data.key !== entry.key;
   const body = data?.loaded;
 
   return (
     <article className="entry">
       <header className="entry-head fade-in" key={"head:" + entry.key}>
-        <h1>{d && <span className="h-seq" title="Order in this project, oldest first">#{d.seq}</span>}{entry.title}</h1>
+        <h1>{entry.title}</h1>
         <div className="meta">
           {d && status ? (
             <>
               <span className={"status " + status}><span className={"dot " + status} /> {STATUS_TEXT[status]}</span>
               <span className="muted">{d.level === "story" ? "Story" : "Detail"}</span>
+              {d.system ? (
+                <button className="meta-link" onClick={onSystem} title="Back to this project's systems">{d.system}</button>
+              ) : (
+                <span className="muted">Unsorted</span>
+              )}
               <span className="muted">{d.date}</span>
             </>
           ) : entry.kind === "file" ? (
@@ -131,12 +149,15 @@ export function EntryView({ entry, all, onOpen, onTag }: { entry: Entry; all: En
         </div>
       </header>
 
-      {d && d.realizes.length + d.detailedBy.length + d.supersedes.length + d.supersededBy.length > 0 && (
+      {d && d.realizes.length + d.detailedBy.length + d.supersedes.length + d.supersededBy.length + shared.length > 0 && (
         <div className="relations fade-in" key={"rel:" + entry.key}>
           <Links label="Part of story" ids={d.realizes} all={peers} onOpen={onOpen} />
           <Links label="Implementation details" ids={d.detailedBy} all={peers} onOpen={onOpen} />
           <Links label="Replaces" ids={d.supersedes} all={peers} onOpen={onOpen} />
           <Links label="Replaced by" ids={d.supersededBy} all={peers} onOpen={onOpen} />
+          {shared.map(([t, ids]) => (
+            <Links key={t} label={`Shares #${t} with`} ids={ids} all={peers} onOpen={onOpen} />
+          ))}
         </div>
       )}
 

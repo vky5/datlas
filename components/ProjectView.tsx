@@ -1,31 +1,79 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { EntryView, loadEntry } from "./EntryView";
-import { Search } from "./icons";
-import { base, effectiveStatus, type Entry, type Project } from "@/lib/workspace";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EntryRow, describe } from "./EntryRow";
+import { EntryView } from "./EntryView";
+import { Overview } from "./Overview";
+import { Chevron, Search } from "./icons";
+import { base, plural, type Entry, type Project } from "@/lib/workspace";
+import { buildTree, type Folder } from "@/lib/tree";
 import type { Problem } from "@/lib/types";
 
-// One project: its list (search and tags scoped to this project) and the reading pane.
-export function ProjectView({ project, all, problems, selected, onOpen }: {
+// The keys of a folder and its parent that hold the given entry, so selecting something can open its path.
+function pathTo(folders: Folder[], key: string): string[] {
+  for (const f of folders) {
+    if ([...f.current, ...f.history].some((r) => r.entry.key === key)) return [f.key];
+    const inner = pathTo(f.subs, key);
+    if (inner.length) return [f.key, ...inner];
+  }
+  return [];
+}
+
+// One project: a tree of systems on the left, the overview or one decision on the right.
+export function ProjectView({ project, all, problems, selected, onOpen, onOverview }: {
   project: Project;
   all: Entry[];
   problems: Problem[];
   selected: string | null;
   onOpen: (key: string) => void;
+  onOverview: () => void;
 }) {
   const [tag, setTag] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [history, setHistory] = useState<Set<string>>(new Set());
   const [showProblems, setShowProblems] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const viewRef = useRef<HTMLElement>(null);
+  const storeKey = "open:" + project.root;
 
-  // Filters belong to one project; start clean when switching.
+  // Which folders are open is remembered per project in this browser. Everything starts closed: the closed tree is the index.
   useEffect(() => {
     setTag(null);
     setQ("");
     setShowProblems(false);
-  }, [project.root]);
+    setHistory(new Set());
+    try {
+      setOpen(new Set(JSON.parse(localStorage.getItem(storeKey) ?? "[]")));
+    } catch {
+      setOpen(new Set());
+    }
+  }, [storeKey]);
+  const updateOpen = useCallback(
+    (fn: (prev: Set<string>) => Set<string>) =>
+      setOpen((prev) => {
+        const next = fn(prev);
+        try {
+          localStorage.setItem(storeKey, JSON.stringify([...next]));
+        } catch {}
+        return next;
+      }),
+    [storeKey],
+  );
+  const toggle = (key: string) =>
+    updateOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const toggleHistory = (key: string) =>
+    setHistory((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   const tags = useMemo(() => {
     const m = new Map<string, number>();
@@ -33,23 +81,49 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
     return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [project.entries]);
 
-  // Decisions in the order they were made (#1 first); loose diagram files after, newest first.
-  const shown = useMemo(
+  // "#config" in the search box filters by tag (prefix match); other words match titles and system names.
+  const typedTag = q.trim().startsWith("#") ? q.trim().slice(1).toLowerCase() : null;
+  const activeTag = typedTag ?? tag;
+  const words = typedTag !== null ? "" : q.trim().toLowerCase();
+  const filtering = !!activeTag || !!words;
+  const matches = useMemo(
     () =>
-      project.entries
-        .filter(
-          (e) =>
-            (!tag || e.tags.includes(tag)) &&
-            (!q || `${e.title} ${e.tags.join(" ")}`.toLowerCase().includes(q.toLowerCase())),
-        )
-        .sort((a, b) =>
-          a.kind === "decision" && b.kind === "decision" ? a.d.seq - b.d.seq
-          : a.kind === "decision" ? -1
-          : b.kind === "decision" ? 1
-          : b.f.mod - a.f.mod,
-        ),
-    [project.entries, tag, q],
+      project.entries.filter(
+        (e) =>
+          (!activeTag || e.tags.some((t) => (typedTag !== null ? t.startsWith(activeTag) : t === activeTag))) &&
+          (!words || `${e.title} ${e.kind === "decision" ? e.d.system : ""}`.toLowerCase().includes(words)),
+      ),
+    [project.entries, activeTag, typedTag, words],
   );
+  const folders = useMemo(() => buildTree(matches, project.entries), [matches, project.entries]);
+  const fullTree = useMemo(() => buildTree(project.entries, project.entries), [project.entries]);
+
+  // Selecting something opens the folders on its path once. After that, the folder toggle is yours.
+  useEffect(() => {
+    if (!selected) return;
+    const keys = pathTo(fullTree, selected);
+    if (keys.some((k) => !open.has(k))) updateOpen((prev) => new Set([...prev, ...keys]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, fullTree]);
+
+  // While filtering, every folder with a match is open and history is included, so results are never hidden.
+  const isOpen = (f: Folder) => filtering || open.has(f.key);
+  const showsHistory = (f: Folder) => filtering || history.has(f.key);
+
+  // Rows in screen order, for ↑/↓.
+  const visible = useMemo(() => {
+    const out: Entry[] = [];
+    const walk = (f: Folder) => {
+      if (!isOpen(f)) return;
+      out.push(...f.current.map((r) => r.entry));
+      f.subs.forEach(walk);
+      if (showsHistory(f)) out.push(...f.history.map((r) => r.entry));
+    };
+    folders.forEach(walk);
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folders, open, history, filtering]);
+
   const projectProblems = problems.filter((p) => p.path.startsWith(project.root + "/"));
   const errors = projectProblems.filter((p) => p.severity === "error").length;
   const current = project.entries.find((e) => e.key === selected) ?? null;
@@ -74,56 +148,88 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
         return;
       }
       const step = ev.key === "ArrowDown" || ev.key === "j" ? 1 : ev.key === "ArrowUp" || ev.key === "k" ? -1 : 0;
-      if (!step || shown.length === 0) return;
+      if (!step || visible.length === 0) return;
       ev.preventDefault();
-      const i = shown.findIndex((e) => e.key === selected);
-      onOpen(shown[Math.max(0, Math.min(shown.length - 1, i < 0 ? 0 : i + step))].key);
+      const i = visible.findIndex((e) => e.key === selected);
+      onOpen(visible[Math.max(0, Math.min(visible.length - 1, i < 0 ? 0 : i + step))].key);
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [shown, selected, onOpen]);
+  }, [visible, selected, onOpen]);
+
+  // From the overview: open that system and show its first decision.
+  const openFolder = (f: Folder) => {
+    updateOpen((prev) => new Set(prev).add(f.key));
+    const first = f.current[0] ?? f.subs[0]?.current[0] ?? f.history[0];
+    if (first) onOpen(first.entry.key);
+  };
+
+  const renderFolder = (f: Folder, sub = false) => {
+    const opened = isOpen(f);
+    const total = f.current.length + f.subs.reduce((n, s) => n + s.current.length, 0);
+    const rows = (list: Folder["current"]) => (
+      <ul className="rows">
+        {list.map((r) => (
+          <li key={r.entry.key}>
+            <EntryRow entry={r.entry} sub={describe(r.entry) + (r.note ? ` · ${r.note}` : "")} nested={r.nested} selected={r.entry.key === selected} onOpen={onOpen} />
+          </li>
+        ))}
+      </ul>
+    );
+    return (
+      <section key={f.key} className={"folder" + (sub ? " sub" : "") + (opened ? "" : " closed") + (f.kind !== "system" ? " quiet" : "")}>
+        <button className="folder-head" onClick={() => toggle(f.key)} aria-expanded={opened} disabled={filtering}>
+          <Chevron />
+          <span className="grow">{f.name}</span>
+          <span className="count">{total}</span>
+        </button>
+        <div className="collapse">
+          <div>
+            {rows(f.current)}
+            {f.subs.map((s) => renderFolder(s, true))}
+            {f.history.length > 0 && showsHistory(f) && rows(f.history)}
+            {f.history.length > 0 && !filtering && (
+              <button className="history-toggle" onClick={() => toggleHistory(f.key)}>
+                {showsHistory(f) ? "Hide history" : `Show history (${f.history.length})`}
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  };
 
   return (
     <div className="body">
       <aside className="list">
         <label className="search">
           <Search />
-          <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${project.name}`} aria-label={`Search ${project.name}`} />
+          <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${project.name}, or #tag`} aria-label={`Search ${project.name}`} />
         </label>
         {tags.length > 0 && (
           <div className="tags">
             {tags.map(([t, n]) => (
-              <button key={t} className={"tag" + (tag === t ? " on" : "")} onClick={() => setTag(tag === t ? null : t)}>
+              <button key={t} className={"tag" + (activeTag === t ? " on" : "")} onClick={() => { setQ(""); setTag(tag === t ? null : t); }}>
                 #{t} <span>{n}</span>
               </button>
             ))}
           </div>
         )}
-        {shown.length === 0 ? (
-          <p className="muted pad">Nothing matches.</p>
-        ) : (
-          <ul className="timeline flat">
-            {shown.map((e) => {
-              const st = e.kind === "decision" ? effectiveStatus(e.d) : null;
-              return (
-                <li key={e.key}>
-                  <button data-key={e.key} className={"row" + (e.key === selected ? " on" : "")} onClick={() => onOpen(e.key)} onMouseEnter={() => loadEntry(e)}>
-                    {e.kind === "decision" ? <span className={"seq " + st} title={`#${e.d.seq} · ${st}`}>{e.d.seq}</span> : <span className="seq file" title="diagram file">·</span>}
-                    <span className="row-main">
-                      <span className="row-title">{e.title}</span>
-                      <span className="row-sub">{e.kind === "decision" ? (e.d.level === "story" ? "Story" : "Detail") : `${e.f.format === "d2" ? "D2" : "Mermaid"} file`}</span>
-                    </span>
-                    <span className="row-date">{new Date(e.date.slice(0, 10) + "T00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+        {filtering && (
+          <p className="filter-note">
+            {plural(matches.length, "match", "matches")}{activeTag ? ` for #${activeTag}` : ""}
+            <button onClick={() => { setQ(""); setTag(null); }}>Clear</button>
+          </p>
         )}
+
+        <nav className="tree" aria-label="Systems">
+          {folders.length === 0 ? <p className="muted pad">Nothing matches.</p> : folders.map((f) => renderFolder(f))}
+        </nav>
+
         {projectProblems.length > 0 && (
           <div className={"problems" + (errors ? " has-errors" : "")}>
             <button onClick={() => setShowProblems((v) => !v)} aria-expanded={showProblems}>
-              ⚠ {projectProblems.length} note{projectProblems.length === 1 ? "" : "s"} about these files {showProblems ? "▴" : "▾"}
+              ⚠ {plural(projectProblems.length, "note")} about these files {showProblems ? "▴" : "▾"}
             </button>
             {showProblems && (
               <ul>
@@ -141,14 +247,9 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
 
       <main className="view" ref={viewRef}>
         {current ? (
-          <EntryView entry={current} all={all} onOpen={onOpen} onTag={(t) => setTag(t)} />
+          <EntryView entry={current} all={all} onOpen={onOpen} onTag={(t) => { setQ(""); setTag(t); }} onSystem={onOverview} />
         ) : (
-          <div className="placeholder muted">
-            <div>
-              <p>Pick something on the left, or press <kbd>↓</kbd>.</p>
-              <p className="small">Decisions are numbered in the order they were made.</p>
-            </div>
-          </div>
+          <Overview project={project} folders={fullTree} onFolder={openFolder} />
         )}
       </main>
     </div>

@@ -76,7 +76,7 @@ export default function Home() {
           <nav className="crumbs" aria-label="Breadcrumb">
             <button onClick={goHome}>Projects</button>
             <span aria-hidden="true">/</span>
-            <span className="crumb-here" title={project.root}>{project.name}</span>
+            <button className="crumb-here" title="This project's systems" onClick={() => { writeRoute({ project: project.root, entry: null }, false); setRoute({ project: project.root, entry: null }); }}>{project.name}</button>
             <span className="muted small">{project.where}</span>
           </nav>
         ) : (
@@ -97,7 +97,14 @@ export default function Home() {
           <FoldersPanel ws={ws} intro={false} />
         </main>
       ) : project ? (
-        <ProjectView project={project} all={ws.entries} problems={ws.problems} selected={route.entry} onOpen={openEntry} />
+        <ProjectView
+          project={project}
+          all={ws.entries}
+          problems={ws.problems}
+          selected={route.entry}
+          onOpen={openEntry}
+          onOverview={() => { writeRoute({ project: project.root, entry: null }, false); setRoute({ project: project.root, entry: null }); }}
+        />
       ) : lost ? (
         <main className="catalog">
           <p className="muted">That project isn&apos;t in your folders any more.</p>

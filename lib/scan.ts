@@ -1,4 +1,4 @@
-import { promises as fs, readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { DIAGRAM_EXT } from "./server";
 import { analyze, readAtlas } from "./atlas";
@@ -9,31 +9,7 @@ const PARALLEL = 32; // open folders at once; more gains little and risks runnin
 const MAX_FILES = 10000; // diagram files per saved folder
 const MAX_DEPTH = 25; // folder levels below the saved folder
 
-type Project = { root: string; name: string; branch: string | null };
-
-async function readBranch(dir: string): Promise<string | null> {
-  try {
-    const head = (await fs.readFile(path.join(dir, ".git", "HEAD"), "utf8")).trim();
-    return head.startsWith("ref: ") ? head.replace(/^ref: refs\/heads\//, "") : head.slice(0, 7);
-  } catch {
-    return null;
-  }
-}
-
-async function firstNote(file: string, format: "d2" | "mmd"): Promise<string> {
-  try {
-    const fh = await fs.open(file, "r");
-    const buf = Buffer.alloc(400);
-    const { bytesRead } = await fh.read(buf, 0, 400, 0);
-    await fh.close();
-    const marker = format === "d2" ? "#" : "%%";
-    for (const line of buf.subarray(0, bytesRead).toString("utf8").split("\n")) {
-      const t = line.trim();
-      if (t.startsWith(marker)) return t.slice(marker.length).trim();
-    }
-  } catch {}
-  return "";
-}
+type Project = { root: string; name: string };
 
 type Acc = { files: DiagramFile[]; decisions: Decision[]; problems: Problem[]; tooDeep: string[]; full: boolean };
 type Run = <T>(fn: () => Promise<T>) => Promise<T>;
@@ -72,7 +48,7 @@ async function walk(dir: string, proj: Project, depth: number, acc: Acc, run: Ru
     return;
   }
   if (entries.some((e) => e.name === ".git")) {
-    proj = { root: dir, name: path.basename(dir), branch: await readBranch(dir) };
+    proj = { root: dir, name: path.basename(dir) };
   }
   const here = proj;
   const jobs: Promise<void>[] = [];
@@ -85,7 +61,7 @@ async function walk(dir: string, proj: Project, depth: number, acc: Acc, run: Ru
       if (e.name.startsWith(".") || SKIP.has(e.name)) continue;
       // Outside any git repo, each top-level folder of the saved folder is its own project
       // (so ~/work/notes/x.d2 shows under "notes", not under the saved folder's name).
-      const child = depth === 0 && here.root === dir && !entries.some((x) => x.name === ".git") ? { root: full, name: e.name, branch: null } : here;
+      const child = depth === 0 && here.root === dir && !entries.some((x) => x.name === ".git") ? { root: full, name: e.name } : here;
       jobs.push(walk(full, child, depth + 1, acc, run));
     } else if (e.isFile()) {
       const format = DIAGRAM_EXT[path.extname(e.name).toLowerCase()];
@@ -105,15 +81,12 @@ async function walk(dir: string, proj: Project, depth: number, acc: Acc, run: Ru
           }
           acc.files.push({
             path: full,
-            rel: path.relative(here.root, full),
             name: e.name,
             format,
             mod: st.mtimeMs,
             size: st.size,
-            note: await firstNote(full, format),
             projectRoot: here.root,
             project: here.name,
-            branch: here.branch,
           });
         }),
       );
@@ -124,13 +97,12 @@ async function walk(dir: string, proj: Project, depth: number, acc: Acc, run: Ru
 
 export async function scanDir(dir: string): Promise<ScanResult> {
   const acc: Acc = { files: [], decisions: [], problems: [], tooDeep: [], full: false };
-  const isGit = await fs.stat(path.join(dir, ".git")).then(() => true, () => false);
-  await walk(dir, { root: dir, name: path.basename(dir), branch: isGit ? await readBranch(dir) : null }, 0, acc, limiter(PARALLEL));
+  await walk(dir, { root: dir, name: path.basename(dir) }, 0, acc, limiter(PARALLEL));
   acc.files.sort((a, b) => b.mod - a.mod);
   acc.decisions.sort((a, b) => a.path.localeCompare(b.path)); // parallel walk finishes in any order; keep problems stable
   analyze(acc.decisions, acc.problems);
   const notes: string[] = [];
   if (acc.full) notes.push(`Stopped after ${MAX_FILES.toLocaleString()} diagram files; the rest of this folder was skipped.`);
   if (acc.tooDeep.length) notes.push(`Skipped folders more than ${MAX_DEPTH} levels deep, e.g. ${acc.tooDeep[0]}`);
-  return { path: dir, ok: true, isGit, scannedAt: Date.now(), diagrams: acc.files, decisions: acc.decisions, problems: acc.problems, notes };
+  return { path: dir, ok: true, diagrams: acc.files, decisions: acc.decisions, problems: acc.problems, notes };
 }

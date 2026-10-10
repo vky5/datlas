@@ -21,12 +21,11 @@ function renderMermaid(source: string): Promise<string> {
 }
 
 // Shows one diagram: a ready SVG (D2, rendered on the server) or Mermaid source rendered here.
-export function DiagramCanvas({ lang, svg, source, error, note }: {
+export function DiagramCanvas({ lang, svg, source, error }: {
   lang: "d2" | "mermaid";
   svg?: string | null;
   source?: string | null;
   error?: string | null;
-  note?: string | null;
 }) {
   const [out, setOut] = useState<string | null>(svg ?? null);
   const [err, setErr] = useState<string | null>(error ?? null);
@@ -68,7 +67,6 @@ export function DiagramCanvas({ lang, svg, source, error, note }: {
   return (
     <section className="diagram">
       <div className="diagram-bar">
-        <span className="label">{note ?? ""}</span>
         {out && !err && (
           <div className="zoom">
             <button onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))} aria-label="Zoom out">−</button>
