@@ -9,6 +9,7 @@ function I({ children, size = 14 }: { children: ReactNode; size?: number }) {
 }
 export const Folder = () => <I><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></I>;
 export const Diagram = () => <I><rect x="3" y="3" width="6" height="6" rx="1" /><rect x="15" y="15" width="6" height="6" rx="1" /><path d="M9 6h4a2 2 0 0 1 2 2v7" /></I>;
+export const PanelLeft = () => <I><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></I>;
 export const Up = () => <I><path d="M12 19V5M5 12l7-7 7 7" /></I>;
 export const Refresh = () => <I><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /></I>;
 export const Trash = () => <I><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></I>;

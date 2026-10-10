@@ -5,7 +5,7 @@ import { EntryRow, describe } from "./EntryRow";
 import { EntryView } from "./EntryView";
 import { GraphView } from "./GraphView";
 import { Overview } from "./Overview";
-import { Chevron, Search } from "./icons";
+import { Chevron, PanelLeft, Search } from "./icons";
 import { base, plural, type Entry, type Project } from "@/lib/workspace";
 import { buildTree, type Folder } from "@/lib/tree";
 import type { Problem } from "@/lib/types";
@@ -35,6 +35,23 @@ export function ProjectView({ project, all, problems, selected, view, onOpen, on
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<Set<string>>(new Set());
   const [showProblems, setShowProblems] = useState(false);
+  // The sidebar can be folded away to give the reading pane the full width. Remembered in this browser.
+  const [sidebar, setSidebar] = useState(true);
+  useEffect(() => {
+    try {
+      setSidebar(localStorage.getItem("sidebar") !== "closed");
+    } catch {}
+  }, []);
+  const toggleSidebar = useCallback(
+    () =>
+      setSidebar((open) => {
+        try {
+          localStorage.setItem("sidebar", open ? "closed" : "open");
+        } catch {}
+        return !open;
+      }),
+    [],
+  );
   const searchRef = useRef<HTMLInputElement>(null);
   const viewRef = useRef<HTMLElement>(null);
   const storeKey = "open:" + project.root;
@@ -144,9 +161,15 @@ export function ProjectView({ project, all, problems, selected, view, onOpen, on
         if (ev.key === "Escape") (ev.target as HTMLInputElement).blur();
         if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
       }
+      if (ev.key === "[") {
+        ev.preventDefault();
+        toggleSidebar();
+        return;
+      }
       if (ev.key === "/") {
         ev.preventDefault();
-        searchRef.current?.focus();
+        if (!sidebar) toggleSidebar();
+        setTimeout(() => searchRef.current?.focus());
         return;
       }
       const step = ev.key === "ArrowDown" || ev.key === "j" ? 1 : ev.key === "ArrowUp" || ev.key === "k" ? -1 : 0;
@@ -157,7 +180,7 @@ export function ProjectView({ project, all, problems, selected, view, onOpen, on
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [visible, selected, onOpen]);
+  }, [visible, selected, onOpen, sidebar, toggleSidebar]);
 
   // From the overview: open that system and show its first decision.
   const openFolder = (f: Folder) => {
@@ -203,11 +226,19 @@ export function ProjectView({ project, all, problems, selected, view, onOpen, on
   };
 
   return (
-    <div className="body">
+    <div className={"body" + (sidebar ? "" : " side-closed")}>
+      {!sidebar ? (
+        <aside className="list rail">
+          <button className="icon" onClick={toggleSidebar} aria-label="Show sidebar" title="Show sidebar ( [ )"><PanelLeft /></button>
+        </aside>
+      ) : (
       <aside className="list">
-        <div className="views" role="tablist" aria-label="Project view">
-          <button role="tab" aria-selected={!current && !view} className={!current && !view ? "on" : ""} onClick={() => onView()}>Overview</button>
-          <button role="tab" aria-selected={!current && view === "graph"} className={!current && view === "graph" ? "on" : ""} onClick={() => onView("graph")}>Graph</button>
+        <div className="list-top">
+          <div className="views" role="tablist" aria-label="Project view">
+            <button role="tab" aria-selected={!current && !view} className={!current && !view ? "on" : ""} onClick={() => onView()}>Overview</button>
+            <button role="tab" aria-selected={!current && view === "graph"} className={!current && view === "graph" ? "on" : ""} onClick={() => onView("graph")}>Graph</button>
+          </div>
+          <button className="icon" onClick={toggleSidebar} aria-label="Hide sidebar" title="Hide sidebar ( [ )"><PanelLeft /></button>
         </div>
         <label className="search">
           <Search />
@@ -251,6 +282,7 @@ export function ProjectView({ project, all, problems, selected, view, onOpen, on
           </div>
         )}
       </aside>
+      )}
 
       <main className="view" ref={viewRef}>
         {current ? (
