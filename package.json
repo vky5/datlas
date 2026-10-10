@@ -3,14 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1 -p 7777",
     "build": "next build",
-    "start": "next start"
+    "start": "next start -H 127.0.0.1 -p 7777"
   },
   "dependencies": {
+    "mermaid": "^11.17.2",
     "next": "16.4.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-markdown": "^10.1.0",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/node": "^20",

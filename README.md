@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# datlas
 
-## Getting Started
+A local viewer for architecture decisions and diagrams across your projects.
 
-First, run the development server:
+- **Decisions** are markdown files in a project's `.atlas/` folder: front matter (id, level, status, date, tags, links) plus the reasoning and one optional D2 or Mermaid diagram.
+- **Diagrams** are loose `.d2` / `.mmd` files anywhere in the chosen folders.
+- You choose which folders to read on the home page. The list is stored in this browser's localStorage under `directories`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Run
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+    npm install
+    npm run dev        # http://127.0.0.1:7777 (localhost only)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Needs the `d2` binary on PATH for D2 diagrams. Mermaid renders in the browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Try it: add `examples/scheduler-demo` as a folder, then click `#scheduler` in the list to read that feature's history.
 
-## Learn More
+## Recording decisions with Claude Code
 
-To learn more about Next.js, take a look at the following resources:
+Install the skill (copy to every Claude config dir you use):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+    cp -r skill/atlas ~/.claude/skills/atlas
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Then say "record this as a story for <feature>". The skill writes `.atlas/<id>.md` with `status: proposed`. Review it in git and change the status yourself.
 
-## Deploy on Vercel
+## Decision file
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+    ---
+    id: 20261008-scheduler-constraints   # YYYYMMDD-slug, never changes
+    title: Scheduler filters workers by constraints
+    level: story                          # story (high level) | detail (implementation)
+    status: accepted                      # proposed | accepted | rejected
+    date: 2026-10-08 14:30                # time optional; orders same-day decisions (#1, #2…)
+    tags: [scheduler]                     # features; a timeline per tag
+    realizes: []                          # detail only: the story ids it implements
+    supersedes: [20261001-scheduler-random]
+    ---
+    ## Decision / ## Why / ## Alternatives rejected / ## Diagram (```d2 or ```mermaid)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Details point up to stories with `realizes`. Stories never point down; the viewer computes that link.
+- A replaced decision is never edited. The newer one lists it in `supersedes` and the viewer shows the old one as superseded.
+- The viewer lists problems: duplicate ids, unknown ids in links, bad level/status/date, and tags that look like typos of each other.
+
+## Limits
+
+- Reads any `.d2`, `.mmd` or `.atlas/*.md` file under your home folder that is requested; nothing outside it.
+- Scans on every page load. Fine for hundreds of files.
+- No auth. Do not bind it to a non-local address.
