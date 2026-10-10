@@ -155,10 +155,17 @@ export function analyze(decisions: Decision[], problems: Problem[]) {
       return a.mod - b.mod;
     });
     order.forEach((d, i) => (d.seq = i + 1));
-    const sameDay = order.filter((d, i) => i > 0 && d.date.length === 10 && d.date === order[i - 1].date);
-    if (sameDay.length) {
-      problems.push({ path: sameDay[0].path, project: sameDay[0].project, severity: "warning", message: `${sameDay.length + 1} decisions share a date with no time; order falls back to links and file times. Add HH:MM to the date.` });
-    }
+    // Decisions on the same day with no time can't be ordered reliably; name them.
+    const byDay = new Map<string, Decision[]>();
+    for (const d of order) if (d.date.length === 10) byDay.set(d.date, [...(byDay.get(d.date) ?? []), d]);
+    for (const group of byDay.values())
+      if (group.length > 1)
+        problems.push({
+          path: group[0].path,
+          project: group[0].project,
+          severity: "warning",
+          message: `${group.map((d) => "#" + d.seq).join(", ")} have the same date and no time, so their order is a guess. Add a time to each date, like ${group[0].date} 14:30.`,
+        });
 
     const tags = [...new Set(items.flatMap((d) => d.tags))];
     for (let i = 0; i < tags.length; i++)

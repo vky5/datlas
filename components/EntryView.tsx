@@ -114,20 +114,16 @@ export function EntryView({ entry, all, onOpen, onTag }: { entry: Entry; all: En
   return (
     <article className="entry">
       <header className="entry-head fade-in" key={"head:" + entry.key}>
-        <h1>{entry.title}</h1>
+        <h1>{d && <span className="h-seq" title="Order in this project, oldest first">#{d.seq}</span>}{entry.title}</h1>
         <div className="meta">
           {d && status ? (
             <>
-              <span className="pill seq-pill" title={`Decision #${d.seq} in ${entry.project}, counted oldest first`}>#{d.seq} · {entry.project}</span>
-              <span className={"pill " + status}><span className={"dot " + status} /> {STATUS_TEXT[status]}</span>
-              <span className="pill">{d.level === "story" ? "Story · high level" : "Detail · implementation"}</span>
+              <span className={"status " + status}><span className={"dot " + status} /> {STATUS_TEXT[status]}</span>
+              <span className="muted">{d.level === "story" ? "Story" : "Detail"}</span>
               <span className="muted">{d.date}</span>
             </>
           ) : entry.kind === "file" ? (
-            <>
-              <span className="pill">Diagram file · {entry.f.format === "d2" ? "D2" : "Mermaid"}</span>
-              <span className="muted">changed {ago(entry.f.mod)} · {bytes(entry.f.size)}</span>
-            </>
+            <span className="muted">{entry.f.format === "d2" ? "D2" : "Mermaid"} file · changed {ago(entry.f.mod)} · {bytes(entry.f.size)}</span>
           ) : null}
           {entry.tags.map((t) => (
             <button key={t} className="tag" onClick={() => onTag(t)}>#{t}</button>
@@ -162,8 +158,7 @@ export function EntryView({ entry, all, onOpen, onTag }: { entry: Entry; all: En
               svg={body.svg}
               source={body.source}
               error={body.error}
-              note={body.ms !== null ? `compiled in ${body.ms}ms` : null}
-            />
+                />
           )}
           {body.text && (
             <div className="prose">

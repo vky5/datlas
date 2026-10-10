@@ -1,17 +1,17 @@
-/* Layout: top bar, then a list column and one reading pane. Follows the system light/dark setting (so D2 diagrams match). */
+/* Light only, built on four colours. Everything else is derived from them.
+   primary   #1e293b  ink: text, headings
+   secondary #64748b  slate: quieter text, icons, borders
+   tertiary  #eef2f7  mist: sidebar, hovers, chips
+   accent    #3b5bdb  blue: selection, links, the one thing to look at (matches D2's own blue)
+   Status dots keep their own meaning colours (green / amber / red). */
 :root {
-  --bg: #f4f6f9; --panel: #ffffff; --soft: #eef2f6; --line: #dde3ea;
-  --fg: #17212b; --muted: #627083; --accent: #0d8f84; --accent-fg: #ffffff;
-  --ok: #138a5a; --warn: #b7791f; --bad: #c03a2b;
+  --primary: #1e293b; --secondary: #64748b; --tertiary: #eef2f7; --accent: #3b5bdb;
+  --bg: #ffffff; --panel: #ffffff; --soft: var(--tertiary);
+  --line: color-mix(in srgb, var(--secondary) 22%, #ffffff);
+  --fg: var(--primary); --muted: var(--secondary); --accent-fg: #ffffff;
+  --ok: #2f9e6e; --warn: #d0891b; --bad: #d64545;
   --mono: var(--font-geist-mono), ui-monospace, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0c121b; --panel: #111a26; --soft: #172231; --line: #223044;
-    --fg: #dbe3ee; --muted: #8494a9; --accent: #34cdbd; --accent-fg: #06201d;
-    --ok: #3ccf91; --warn: #f0b44c; --bad: #f2786b;
-    color-scheme: dark;
-  }
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -223,3 +223,45 @@ kbd { font: 11px var(--mono); padding: 0 5px; border: 1px solid var(--line); bor
 .hits ul { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
 .timeline.flat { list-style: none; margin: 0; padding: 0; }
 .placeholder > div { text-align: center; }
+
+/* light, four-colour pass: quieter chrome, the diagram is the focus */
+.top { background: #ffffff; }
+.list { background: var(--tertiary); border-right: 1px solid var(--line); }
+.list .search { background: #ffffff; }
+.row:hover { background: color-mix(in srgb, var(--secondary) 10%, var(--tertiary)); }
+.row.on { background: #ffffff; border-left-color: var(--accent); box-shadow: 0 1px 2px rgba(30, 41, 59, .06); }
+.row-title { color: var(--primary); }
+.seq { outline-color: var(--tertiary); color: #ffffff; }
+.seq.superseded { background: var(--tertiary); color: var(--secondary); }
+.seq.file { background: #ffffff; color: var(--secondary); }
+.timeline::before { background: color-mix(in srgb, var(--secondary) 25%, var(--tertiary)); }
+.tag { background: #ffffff; color: var(--accent); border: 1px solid var(--line); }
+.tag.on { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+.problems { margin: 14px 12px 0; background: none; color: var(--secondary); }
+.problems > button { padding: 4px 4px; font-size: 12px; }
+.problems li.warning { color: var(--primary); }
+.problems.has-errors { color: var(--bad); }
+
+.entry { gap: 16px; }
+.entry-head h1 { display: flex; align-items: baseline; gap: 10px; font-size: 21px; margin-bottom: 8px; }
+.h-seq { flex: none; font: 600 15px var(--mono); color: var(--accent); }
+.meta { gap: 6px 14px; color: var(--secondary); }
+.status { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.status.accepted { color: var(--ok); } .status.proposed { color: var(--warn); } .status.rejected { color: var(--bad); } .status.superseded { color: var(--secondary); }
+.relations { background: var(--tertiary); border: 0; }
+.link-chip { background: #ffffff; }
+
+/* diagram: no frame or toolbar; zoom controls appear on hover */
+.diagram { position: relative; border: 0; background: none; overflow: visible; }
+.diagram-bar { position: absolute; top: 8px; right: 8px; z-index: 2; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; background: #ffffff; opacity: 0; transition: opacity .15s var(--ease); }
+.diagram:hover .diagram-bar, .diagram:focus-within .diagram-bar { opacity: 1; }
+.diagram-bar .label:empty { display: none; }
+.canvas { padding: 0; max-height: none; }
+.svgwrap { border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 1px 3px rgba(30, 41, 59, .06); }
+.diagram-error { border: 1px solid var(--line); border-radius: 8px; background: #fff6f5; }
+.prose { color: var(--primary); }
+.entry-foot { border-top-color: var(--line); }
+.catalog { background: #ffffff; }
+.card-btn { background: #ffffff; }
+.card-btn:hover { border-color: var(--accent); box-shadow: 0 6px 18px rgba(30, 41, 59, .08); }
+.card-top svg, .brand svg { color: var(--accent); }

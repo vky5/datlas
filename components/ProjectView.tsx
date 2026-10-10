@@ -6,11 +6,7 @@ import { Search } from "./icons";
 import { base, effectiveStatus, type Entry, type Project } from "@/lib/workspace";
 import type { Problem } from "@/lib/types";
 
-type Kind = "all" | "story" | "detail" | "file";
-const KINDS: [Kind, string][] = [["all", "All"], ["story", "Stories"], ["detail", "Details"], ["file", "Diagram files"]];
-const kindOf = (e: Entry): Kind => (e.kind === "file" ? "file" : e.d.level);
-
-// One project: its list (search, kinds and tags scoped to this project) and the reading pane.
+// One project: its list (search and tags scoped to this project) and the reading pane.
 export function ProjectView({ project, all, problems, selected, onOpen }: {
   project: Project;
   all: Entry[];
@@ -18,7 +14,6 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
   selected: string | null;
   onOpen: (key: string) => void;
 }) {
-  const [kind, setKind] = useState<Kind>("all");
   const [tag, setTag] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [showProblems, setShowProblems] = useState(false);
@@ -27,7 +22,6 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
 
   // Filters belong to one project; start clean when switching.
   useEffect(() => {
-    setKind("all");
     setTag(null);
     setQ("");
     setShowProblems(false);
@@ -45,7 +39,6 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
       project.entries
         .filter(
           (e) =>
-            (kind === "all" || kindOf(e) === kind) &&
             (!tag || e.tags.includes(tag)) &&
             (!q || `${e.title} ${e.tags.join(" ")}`.toLowerCase().includes(q.toLowerCase())),
         )
@@ -55,7 +48,7 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
           : b.kind === "decision" ? 1
           : b.f.mod - a.f.mod,
         ),
-    [project.entries, kind, tag, q],
+    [project.entries, tag, q],
   );
   const projectProblems = problems.filter((p) => p.path.startsWith(project.root + "/"));
   const errors = projectProblems.filter((p) => p.severity === "error").length;
@@ -98,11 +91,6 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
           <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${project.name}`} aria-label={`Search ${project.name}`} />
           <kbd>/</kbd>
         </label>
-        <div className="kinds" role="tablist">
-          {KINDS.map(([k, label]) => (
-            <button key={k} role="tab" aria-selected={kind === k} className={kind === k ? "on" : ""} onClick={() => setKind(k)}>{label}</button>
-          ))}
-        </div>
         {tags.length > 0 && (
           <div className="tags">
             {tags.map(([t, n]) => (
@@ -112,24 +100,6 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
             ))}
           </div>
         )}
-        {projectProblems.length > 0 && (
-          <div className={"problems" + (errors ? " has-errors" : "")}>
-            <button onClick={() => setShowProblems((v) => !v)} aria-expanded={showProblems}>
-              {projectProblems.length} issue{projectProblems.length === 1 ? "" : "s"} in decision files {showProblems ? "▴" : "▾"}
-            </button>
-            {showProblems && (
-              <ul>
-                {projectProblems.map((p, i) => (
-                  <li key={i} className={p.severity}>
-                    {p.message}
-                    <small>.atlas/{base(p.path)}</small>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
         {shown.length === 0 ? (
           <p className="muted pad">Nothing matches.</p>
         ) : (
@@ -142,17 +112,31 @@ export function ProjectView({ project, all, problems, selected, onOpen }: {
                     {e.kind === "decision" ? <span className={"seq " + st} title={`#${e.d.seq} · ${st}`}>{e.d.seq}</span> : <span className="seq file" title="diagram file">·</span>}
                     <span className="row-main">
                       <span className="row-title">{e.title}</span>
-                      <span className="row-sub">
-                        {e.kind === "decision" ? `${e.d.level === "story" ? "Story" : "Detail"} · ${st}` : `${e.f.format === "d2" ? "D2" : "Mermaid"} file`}
-                        {e.tags.length > 0 && " · " + e.tags.map((t) => "#" + t).join(" ")}
-                      </span>
+                      <span className="row-sub">{e.kind === "decision" ? (e.d.level === "story" ? "Story" : "Detail") : `${e.f.format === "d2" ? "D2" : "Mermaid"} file`}</span>
                     </span>
-                    <span className="row-date">{e.date}</span>
+                    <span className="row-date">{new Date(e.date.slice(0, 10) + "T00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
                   </button>
                 </li>
               );
             })}
           </ul>
+        )}
+        {projectProblems.length > 0 && (
+          <div className={"problems" + (errors ? " has-errors" : "")}>
+            <button onClick={() => setShowProblems((v) => !v)} aria-expanded={showProblems}>
+              ⚠ {projectProblems.length} note{projectProblems.length === 1 ? "" : "s"} about these files {showProblems ? "▴" : "▾"}
+            </button>
+            {showProblems && (
+              <ul>
+                {projectProblems.map((p, i) => (
+                  <li key={i} className={p.severity}>
+                    {p.message}
+                    <small>.atlas/{base(p.path)}</small>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </aside>
 

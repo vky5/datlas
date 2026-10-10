@@ -53,10 +53,14 @@ export function DiagramCanvas({ lang, svg, source, error, note }: {
   const size = out?.match(/viewBox="[\d.\-]+ [\d.\-]+ ([\d.]+) ([\d.]+)"/);
   const w = size ? +size[1] : 0;
   const h = size ? +size[2] : 0;
+  // Fit the whole diagram: as wide as the pane allows, and no taller than about 75% of the window.
   const fit = useCallback(() => {
     const avail = ref.current?.clientWidth;
-    if (avail && w) setZoom(Math.max(0.25, Math.min(1, +((avail - 32) / w).toFixed(2))));
-  }, [w]);
+    if (!avail || !w) return;
+    const byWidth = (avail - 32) / w;
+    const byHeight = h ? (window.innerHeight * 0.75) / h : 1;
+    setZoom(Math.max(0.25, Math.min(1, +Math.min(byWidth, byHeight).toFixed(2))));
+  }, [w, h]);
   useEffect(() => {
     if (out) fit();
   }, [out, fit]);
@@ -64,7 +68,7 @@ export function DiagramCanvas({ lang, svg, source, error, note }: {
   return (
     <section className="diagram">
       <div className="diagram-bar">
-        <span className="label">{lang === "d2" ? "D2" : "Mermaid"}{note ? ` · ${note}` : ""}</span>
+        <span className="label">{note ?? ""}</span>
         {out && !err && (
           <div className="zoom">
             <button onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))} aria-label="Zoom out">−</button>
