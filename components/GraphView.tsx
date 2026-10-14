@@ -5,14 +5,14 @@ import { DiagramCanvas } from "./DiagramCanvas";
 import type { Project } from "@/lib/workspace";
 
 // How decisions connect: one box per system, stories above their details, dashed arrows for replacements.
-// The server draws it with D2 (same look as every other diagram). Boxes are links to the decision.
+// The server writes it as D2 (same look as every other diagram). Boxes are links to the decision.
 export function GraphView({ project, highlight, tag, onOpen }: {
   project: Project;
   highlight: string[] | null; // decision ids to keep bright; null = no filter
   tag: string | null;
   onOpen: (key: string) => void;
 }) {
-  const [svg, setSvg] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [empty, setEmpty] = useState(false);
   const body = JSON.stringify({ project: project.root, highlight });
@@ -27,7 +27,7 @@ export function GraphView({ project, highlight, tag, onOpen }: {
         if (!res.ok) setError(b.error ?? "Could not draw the graph");
         else {
           setEmpty(!!b.empty);
-          setSvg(b.svg);
+          setSource(b.source);
         }
       })
       .catch(() => !cancelled && setError("Could not reach the server"));
@@ -59,7 +59,7 @@ export function GraphView({ project, highlight, tag, onOpen }: {
         <p className="muted">No decisions in this project yet.</p>
       ) : (
         <div onClick={onClick}>
-          <DiagramCanvas lang="d2" svg={svg} error={error} />
+          <DiagramCanvas lang="d2" source={source} error={error} />
         </div>
       )}
     </div>

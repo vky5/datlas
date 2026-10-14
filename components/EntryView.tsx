@@ -11,9 +11,8 @@ import type { Decision } from "@/lib/types";
 type Loaded = {
   text: string | null;
   lang: "d2" | "mermaid" | null;
-  svg: string | null;
   source: string | null;
-  error: string | null;
+  path: string | null; // the diagram's own file, so D2 imports resolve beside it
 };
 
 async function fetchEntry(e: Entry): Promise<Loaded> {
@@ -22,19 +21,11 @@ async function fetchEntry(e: Entry): Promise<Loaded> {
     const res = await fetch(`/api/decision?path=${q}`);
     const b = await res.json();
     if (!res.ok) throw new Error(b.error ?? "Could not read this decision");
-    return { text: b.text, lang: b.lang, svg: b.svg, source: b.source, error: b.error };
-  }
-  if (e.f.format === "d2") {
-    const res = await fetch(`/api/render?path=${q}`);
-    if (!res.ok) {
-      const b = await res.json().catch(() => ({ error: "Render failed" }));
-      return { text: null, lang: "d2", svg: null, source: null, error: b.error };
-    }
-    return { text: null, lang: "d2", svg: await res.text(), source: null, error: null };
+    return { text: b.text, lang: b.lang, source: b.source, path: null };
   }
   const res = await fetch(`/api/source?path=${q}`);
   if (!res.ok) throw new Error("Could not read this file");
-  return { text: null, lang: "mermaid", svg: null, source: await res.text(), error: null };
+  return { text: null, lang: e.f.format === "d2" ? "d2" : "mermaid", source: await res.text(), path: e.key };
 }
 
 // Keyed by path + modified time, so an edited file is fetched again and an unchanged one opens instantly.
@@ -175,12 +166,7 @@ export function EntryView({ entry, all, onOpen, onTag, onSystem }: { entry: Entr
       {body && (
         <div className={"entry-body" + (stale ? " stale" : " fade-in")} key={"body:" + data!.key}>
           {body.lang && (
-            <DiagramCanvas
-              lang={body.lang}
-              svg={body.svg}
-              source={body.source}
-              error={body.error}
-                />
+            <DiagramCanvas lang={body.lang} source={body.source} path={body.path} />
           )}
           {body.text && (
             <div className="prose">

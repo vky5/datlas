@@ -8,6 +8,7 @@
     "start": "next start -H 127.0.0.1 -p 7777"
   },
   "dependencies": {
+    "@terrastruct/d2": "0.1.33",
     "mermaid": "^11.17.2",
     "next": "16.4.0",
     "react": "19.3.0",

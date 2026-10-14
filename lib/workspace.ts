@@ -21,12 +21,10 @@ export function useWorkspace() {
   const [loaded, setLoaded] = useState(false);
   const [scans, setScans] = useState<Record<string, ScanResult>>({});
   const [scanning, setScanning] = useState(false);
-  const [d2, setD2] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
     setSaved(readSaved());
     setLoaded(true);
-    fetch("/api/health").then((r) => r.json()).then((h) => setD2(h.d2 ?? null)).catch(() => setD2(null));
   }, []);
 
   const rescan = useCallback(async (dirs: string[]) => {
@@ -95,7 +93,7 @@ export function useWorkspace() {
   );
 
   return {
-    saved, loaded, scans, scanning, diagrams, decisions, problems, entries, d2,
+    saved, loaded, scans, scanning, diagrams, decisions, problems, entries,
     add: (dir: string) => !saved.includes(dir) && persist([...saved, dir]),
     remove: (dir: string) => persist(saved.filter((d) => d !== dir)),
     rescan: () => rescan(saved),

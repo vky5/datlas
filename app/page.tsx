@@ -98,7 +98,6 @@ export default function Home() {
           </span>
         )}
         <span className="grow" />
-        {ws.d2 === null && <span className="error-text small">d2 not found: D2 diagrams won&apos;t render</span>}
         <button className="icon" onClick={ws.rescan} aria-label="Rescan folders" title="Rescan folders"><Refresh /></button>
         <button className="btn" onClick={() => setFoldersOpen(true)}><Folder /> Folders</button>
       </header>

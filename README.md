@@ -11,7 +11,7 @@ A local viewer for architecture decisions and diagrams across your projects.
     npm install
     npm run dev        # http://127.0.0.1:7777 (localhost only)
 
-Needs the `d2` binary on PATH for D2 diagrams. Mermaid renders in the browser.
+Both D2 and Mermaid render in the browser. D2 uses D2.js (d2 compiled to WebAssembly), so no `d2` binary is needed; its ~6 MB bundle loads the first time a D2 diagram is shown.
 
 Try it: add `examples/scheduler-demo` as a folder, open the project, and pick a system from the overview.
 
