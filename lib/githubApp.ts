@@ -57,6 +57,15 @@ export async function exchangeCode(code: string, redirectUri: string): Promise<s
 export const currentUser = (userToken: string) => api<{ id: number; login: string }>("/user", userToken);
 
 export type Installation = { id: number; account: { id: number; login: string } };
+
+// datlas supports installs on personal accounts only. Installs the user can see on organizations they belong to
+// don't count, but they're reported so the user learns why datlas sends them back to install.
+export type InstallChoice = { kind: "own"; id: number } | { kind: "orgs-only"; orgs: string[] } | { kind: "none" };
+export function pickInstallation(userId: number, installs: Installation[]): InstallChoice {
+  const own = installs.find((i) => i.account.id === userId);
+  if (own) return { kind: "own", id: own.id };
+  return installs.length ? { kind: "orgs-only", orgs: installs.map((i) => i.account.login) } : { kind: "none" };
+}
 export async function userInstallations(userToken: string): Promise<Installation[]> {
   return (await api<{ installations: Installation[] }>("/user/installations?per_page=100", userToken)).installations;
 }
