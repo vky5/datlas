@@ -26,7 +26,8 @@ const name = (r: Repo) => `${r.owner}/${r.repo}`;
 const encodePath = (p: string) => p.split("/").map(encodeURIComponent).join("/");
 
 async function request(url: string, opts: Opts, headers: Record<string, string> = {}): Promise<Response> {
-  const h: Record<string, string> = { "X-GitHub-Api-Version": "2022-11-28", ...headers };
+  // Only the API gets the version header: in a browser, the raw host refuses requests that carry it.
+  const h: Record<string, string> = url.startsWith(API) ? { "X-GitHub-Api-Version": "2022-11-28", ...headers } : { ...headers };
   if (opts.token) h.Authorization = `Bearer ${opts.token}`;
   try {
     return await fetch(url, { headers: h, signal: AbortSignal.timeout(TIMEOUT_MS) });

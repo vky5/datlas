@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { clearCopies } from "./copy";
 
 export type InstalledRepo = { owner: string; repo: string; private: boolean };
 export type GitHubState =
@@ -35,6 +36,7 @@ export function useGitHub() {
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    await clearCopies();
     setState({ status: "out" });
   }, []);
 
