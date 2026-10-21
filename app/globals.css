@@ -259,3 +259,4 @@ button.link-chip:hover { border-color: var(--accent); }
 .onboard .gh { margin-bottom: 20px; }
 .onboard h2 { font-size: 16px; }
 .account { display: inline-flex; align-items: center; gap: 10px; }
+.crumbs .warn-text { display: inline; }

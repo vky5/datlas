@@ -34,7 +34,7 @@ function writeRoute(r: Route, push: boolean) {
 export default function Home() {
   const ws = useWorkspace();
   const gh = useGitHub();
-  const ghData = useGitHubData(gh.state);
+  const ghData = useGitHubData(gh.state, gh.refresh);
   const entries = useMemo(() => [...ws.entries, ...ghData.entries], [ws.entries, ghData.entries]);
   const problems = useMemo(() => [...ws.problems, ...ghData.problems], [ws.problems, ghData.problems]);
   const [route, setRoute] = useState<Route>({ project: null, entry: null });
@@ -60,11 +60,16 @@ export default function Home() {
   const ghRoot = projectRoot && isGitHubKey(projectRoot) ? projectRoot : null;
   const ghCopy = ghRoot ? ghData.copies[ghRoot] : undefined;
   const ghSync = ghRoot ? ghData.sync[ghRoot] : undefined;
-  const syncOpen = useCallback(() => {
-    const k = ghRoot && parseKey(ghRoot);
-    if (k) ghData.syncOne(k.owner, k.repo, ghData.copies[ghRoot!]?.via ?? "installation");
+  const ghVia = ghRoot ? ghData.copies[ghRoot]?.via ?? "installation" : "installation";
+  const ghPaused = ghData.pausedUntil[ghVia] > 0 ? new Date(ghData.pausedUntil[ghVia]) : null;
+  const syncOpen = useCallback(
+    (force = false) => {
+      const k = ghRoot && parseKey(ghRoot);
+      if (k) ghData.syncOne(k.owner, k.repo, ghVia, force);
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ghRoot, ghData.syncOne]);
+    [ghRoot, ghVia, ghData.syncOne],
+  );
   useEffect(() => {
     if (ghData.loaded) syncOpen();
   }, [ghData.loaded, syncOpen]);
@@ -116,8 +121,9 @@ export default function Home() {
             {ghRoot && (
               <>
                 <span className="muted small">{ghSync?.syncing ? "syncing…" : ghCopy ? `synced ${ago(ghCopy.syncedAt)}` : ""}</span>
-                {ghSync?.error && <span className="error-text small">{ghSync.error}</span>}
-                <button className="icon" onClick={syncOpen} disabled={ghSync?.syncing} aria-label="Sync from GitHub" title="Sync from GitHub"><Refresh /></button>
+                {ghSync?.error && !ghSync.limited && <span className="error-text small">{ghSync.error}</span>}
+                {ghPaused && <span className="warn-text small">GitHub rate limit reached; sync resumes at {ghPaused.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>}
+                <button className="icon" onClick={() => syncOpen(true)} disabled={ghSync?.syncing || !!ghPaused} aria-label="Sync from GitHub" title={ghPaused ? "Paused until GitHub's rate limit refills" : "Sync from GitHub"}><Refresh /></button>
               </>
             )}
           </nav>

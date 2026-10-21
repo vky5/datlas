@@ -39,6 +39,8 @@ export function GitHubSection({ state, data, projects, onOpen }: { state: GitHub
             const p = projects.find((x) => x.root === root);
             const copy = data.copies[root];
             const sync = data.sync[root];
+            const paused = data.pausedUntil[copy?.via ?? "installation"] > 0;
+            const error = sync?.error && (!sync.limited || paused) ? sync.error : null;
             const systems = p ? new Set(p.entries.flatMap((e) => (e.kind === "decision" ? [e.d.system.split("/")[0] || "unsorted"] : []))).size : 0;
             return (
               <Card key={root} title={r.repo} hint={`Open ${r.owner}/${r.repo}`} aside={<span className="muted small">{r.private ? "private" : "public"}</span>} onClick={() => onOpen(root)}>
@@ -54,8 +56,8 @@ export function GitHubSection({ state, data, projects, onOpen }: { state: GitHub
                 ) : copy ? (
                   <span className="muted small">No .datlas/ folder at the repo root</span>
                 ) : null}
-                {sync?.error ? (
-                  <span className="error-text small">{sync.error}</span>
+                {error ? (
+                  <span className="error-text small">{error}</span>
                 ) : (
                   <span className="muted small">{sync?.syncing ? "Syncing…" : copy ? `Synced ${ago(copy.syncedAt)}` : "Not synced yet"}</span>
                 )}
