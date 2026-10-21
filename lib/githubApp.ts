@@ -11,8 +11,11 @@ function env(name: string): string {
   return v;
 }
 
+// GITHUB_PRIVATE_KEY holds the key itself (hosting has no key file); GITHUB_PRIVATE_KEY_PATH points at the .pem locally.
+// Hosts often store the newlines as "\n", so those are turned back into real ones.
 let key: string | null = null;
-const privateKey = () => (key ??= readFileSync(env("GITHUB_PRIVATE_KEY_PATH"), "utf8"));
+const privateKey = () =>
+  (key ??= process.env.GITHUB_PRIVATE_KEY ? process.env.GITHUB_PRIVATE_KEY.replace(/\\n/g, "\n") : readFileSync(env("GITHUB_PRIVATE_KEY_PATH"), "utf8"));
 
 // Proves "I am the App". GitHub allows at most 10 minutes; backdated a minute for clock drift.
 function appJwt(): string {

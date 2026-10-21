@@ -6,6 +6,7 @@ import { EntryRow, describe } from "./EntryRow";
 import { Search } from "./icons";
 import { ago, plural, type Entry, type Project } from "@/lib/workspace";
 import { isGitHubKey } from "@/lib/repoKey";
+import { LOCAL_FILES } from "@/lib/mode";
 
 // First screen: one card per project that has something in it, plus search across every project.
 export function Catalog({ projects, scanning, onProject, onEntry, children }: {
@@ -51,7 +52,7 @@ export function Catalog({ projects, scanning, onProject, onEntry, children }: {
         </label>
       </div>
 
-      {local.length === 0 && (
+      {LOCAL_FILES && local.length === 0 && (
         <p className="muted">{scanning ? "Scanning your folders…" : "No decisions or diagram files found in your folders yet. Decisions live in a project's .datlas/ folder."}</p>
       )}
 

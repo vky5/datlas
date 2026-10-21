@@ -1,9 +1,12 @@
+import { localOnly } from "@/lib/server";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 // Lists the sub-folders of one folder. Only folders under the home directory are allowed.
 export async function GET(request: Request) {
+  const off = localOnly();
+  if (off) return off;
   const home = await fs.realpath(os.homedir());
   const wanted = new URL(request.url).searchParams.get("path") || home;
 

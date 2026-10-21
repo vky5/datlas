@@ -1,10 +1,12 @@
-import { fail, resolveInHome } from "@/lib/server";
+import { fail, resolveInHome, localOnly } from "@/lib/server";
 import { scanDir } from "@/lib/scan";
 import { decisionGraph } from "@/lib/graph";
 
 // The decision graph of one project, as D2 source for the browser to render.
 // Body: { project, highlight?: string[] } — ids outside highlight are dimmed.
 export async function POST(request: Request) {
+  const off = localOnly();
+  if (off) return off;
   try {
     const body = await request.json().catch(() => null);
     const root = await resolveInHome(String(body?.project ?? ""));

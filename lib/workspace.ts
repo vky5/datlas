@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { LOCAL_FILES } from "./mode";
 import { parseKey } from "./repoKey";
 import { countStatus, type Status } from "./status";
 import type { Decision, DiagramFile, Problem, ScanResult } from "./types";
@@ -24,7 +25,7 @@ export function useWorkspace() {
   const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
-    setSaved(readSaved());
+    if (LOCAL_FILES) setSaved(readSaved());
     setLoaded(true);
   }, []);
 

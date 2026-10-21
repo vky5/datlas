@@ -1,4 +1,4 @@
-import { fail, resolveInHome, HttpError } from "@/lib/server";
+import { fail, resolveInHome, HttpError, localOnly } from "@/lib/server";
 import { scanDir } from "@/lib/scan";
 import type { ScanResult } from "@/lib/types";
 
@@ -15,6 +15,8 @@ function scanShared(dir: string) {
 
 // The browser sends the folders it saved; the server keeps nothing.
 export async function POST(request: Request) {
+  const off = localOnly();
+  if (off) return off;
   try {
     const body = await request.json().catch(() => null);
     const dirs: unknown = body?.directories;

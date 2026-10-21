@@ -2,6 +2,11 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { LOCAL_FILES } from "./mode";
+
+// Every route that touches the disk starts with this: with local folders off (hosted), it doesn't exist.
+export const localOnly = () => (LOCAL_FILES ? null : Response.json({ error: "Not found" }, { status: 404 }));
+
 export class HttpError extends Error {
   constructor(public status: number, message: string) {
     super(message);

@@ -1,0 +1,7 @@
+# Never upload secrets. Vercel gets its values from `vercel env`, not from these files.
+secrets/
+*.pem
+.env.local
+.env*.local
+.next/
+node_modules/

@@ -9,6 +9,7 @@ import { Diagram, Folder, GitHub, Refresh } from "@/components/icons";
 import { useGitHub } from "@/lib/account";
 import { ago, summarizeProjects, useWorkspace } from "@/lib/workspace";
 import { useGitHubData } from "@/lib/githubData";
+import { LOCAL_FILES } from "@/lib/mode";
 import { isGitHubKey, parseKey } from "@/lib/repoKey";
 
 // The URL hash holds where you are: "#project=<root>&entry=<file>". Empty hash = the project list.
@@ -105,7 +106,7 @@ export default function Home() {
   );
 
   // First run: no folders saved. A GitHub project can still be open, so that wins.
-  const needsFolders = ws.loaded && ws.saved.length === 0 && !projectRoot;
+  const needsFolders = LOCAL_FILES && ws.loaded && ws.saved.length === 0 && !projectRoot;
   const lost = projectRoot && !ghRoot && !project && !ws.scanning && ws.loaded;
 
   return (
@@ -133,8 +134,12 @@ export default function Home() {
           </span>
         )}
         <span className="grow" />
-        <button className="icon" onClick={ws.rescan} aria-label="Rescan folders" title="Rescan folders"><Refresh /></button>
-        <button className="btn" onClick={() => setFoldersOpen(true)}><Folder /> Folders</button>
+        {LOCAL_FILES && (
+          <>
+            <button className="icon" onClick={ws.rescan} aria-label="Rescan folders" title="Rescan folders"><Refresh /></button>
+            <button className="btn" onClick={() => setFoldersOpen(true)}><Folder /> Folders</button>
+          </>
+        )}
         {gh.state.status === "out" && <a className="btn" href="/api/auth/login"><GitHub /> Log in with GitHub</a>}
         {gh.state.status === "in" && (
           <span className="account">
