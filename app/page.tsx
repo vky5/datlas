@@ -7,7 +7,9 @@ import { GitHubSection } from "@/components/GitHubSection";
 import { ProjectView } from "@/components/ProjectView";
 import { Diagram, Folder, GitHub, Refresh } from "@/components/icons";
 import { useGitHub } from "@/lib/account";
-import { summarizeProjects, useWorkspace } from "@/lib/workspace";
+import { ago, summarizeProjects, useWorkspace } from "@/lib/workspace";
+import { useGitHubData } from "@/lib/githubData";
+import { isGitHubKey, parseKey } from "@/lib/repoKey";
 
 // The URL hash holds where you are: "#project=<root>&entry=<file>". Empty hash = the project list.
 // view "graph" shows the project's decision graph instead of its overview (only when no entry is open).
@@ -32,6 +34,9 @@ function writeRoute(r: Route, push: boolean) {
 export default function Home() {
   const ws = useWorkspace();
   const gh = useGitHub();
+  const ghData = useGitHubData(gh.state);
+  const entries = useMemo(() => [...ws.entries, ...ghData.entries], [ws.entries, ghData.entries]);
+  const problems = useMemo(() => [...ws.problems, ...ghData.problems], [ws.problems, ghData.problems]);
   const [route, setRoute] = useState<Route>({ project: null, entry: null });
   const [foldersOpen, setFoldersOpen] = useState(false);
 
@@ -46,10 +51,23 @@ export default function Home() {
     };
   }, []);
 
-  const projects = useMemo(() => summarizeProjects(ws.entries, ws.saved), [ws.entries, ws.saved]);
+  const projects = useMemo(() => summarizeProjects(entries, ws.saved), [entries, ws.saved]);
   // An old-style link names only the file; find its project once the scan has it.
-  const projectRoot = route.project ?? (route.entry ? ws.entries.find((e) => e.key === route.entry)?.projectRoot ?? null : null);
+  const projectRoot = route.project ?? (route.entry ? entries.find((e) => e.key === route.entry)?.projectRoot ?? null : null);
   const project = projects.find((p) => p.root === projectRoot) ?? null;
+
+  // A GitHub project is synced every time it is opened: one call when nothing changed.
+  const ghRoot = projectRoot && isGitHubKey(projectRoot) ? projectRoot : null;
+  const ghCopy = ghRoot ? ghData.copies[ghRoot] : undefined;
+  const ghSync = ghRoot ? ghData.sync[ghRoot] : undefined;
+  const syncOpen = useCallback(() => {
+    const k = ghRoot && parseKey(ghRoot);
+    if (k) ghData.syncOne(k.owner, k.repo, ghData.copies[ghRoot!]?.via ?? "installation");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ghRoot, ghData.syncOne]);
+  useEffect(() => {
+    if (ghData.loaded) syncOpen();
+  }, [ghData.loaded, syncOpen]);
 
   // Changing project adds a history step (Back returns to the list); picking an item inside it does not.
   const goHome = useCallback(() => {
@@ -62,12 +80,12 @@ export default function Home() {
   }, []);
   const openEntry = useCallback(
     (key: string) => {
-      const root = ws.entries.find((e) => e.key === key)?.projectRoot ?? projectRoot;
+      const root = entries.find((e) => e.key === key)?.projectRoot ?? projectRoot;
       const r = { project: root, entry: key };
       writeRoute(r, root !== projectRoot);
       setRoute(r);
     },
-    [ws.entries, projectRoot],
+    [entries, projectRoot],
   );
 
   // The current project's overview, or its graph. Replaces the history step: it is a tab, not a new place.
@@ -81,8 +99,9 @@ export default function Home() {
     [projectRoot],
   );
 
-  const needsFolders = ws.loaded && ws.saved.length === 0;
-  const lost = projectRoot && !project && !ws.scanning && ws.loaded;
+  // First run: no folders saved. A GitHub project can still be open, so that wins.
+  const needsFolders = ws.loaded && ws.saved.length === 0 && !projectRoot;
+  const lost = projectRoot && !ghRoot && !project && !ws.scanning && ws.loaded;
 
   return (
     <div className="app">
@@ -94,10 +113,17 @@ export default function Home() {
             <span aria-hidden="true">/</span>
             <button className="crumb-here" title="This project's systems" onClick={() => showProject()}>{project.name}</button>
             <span className="muted small">{project.where}</span>
+            {ghRoot && (
+              <>
+                <span className="muted small">{ghSync?.syncing ? "syncing…" : ghCopy ? `synced ${ago(ghCopy.syncedAt)}` : ""}</span>
+                {ghSync?.error && <span className="error-text small">{ghSync.error}</span>}
+                <button className="icon" onClick={syncOpen} disabled={ghSync?.syncing} aria-label="Sync from GitHub" title="Sync from GitHub"><Refresh /></button>
+              </>
+            )}
           </nav>
         ) : (
           <span className="muted small">
-            {projects.length} project{projects.length === 1 ? "" : "s"} · {ws.decisions.length} decision{ws.decisions.length === 1 ? "" : "s"} · {ws.diagrams.length} diagram file{ws.diagrams.length === 1 ? "" : "s"}
+            {projects.length} project{projects.length === 1 ? "" : "s"} · {ws.decisions.length + ghData.entries.length} decision{ws.decisions.length + ghData.entries.length === 1 ? "" : "s"} · {ws.diagrams.length} diagram file{ws.diagrams.length === 1 ? "" : "s"}
           </span>
         )}
         <span className="grow" />
@@ -115,7 +141,7 @@ export default function Home() {
       {needsFolders ? (
         <main className="onboard">
           <h1>See your architecture decisions in one place</h1>
-          <GitHubSection state={gh.state} />
+          <GitHubSection state={gh.state} data={ghData} projects={projects} onOpen={(root) => goProject(root)} />
           <h2>Folders on this computer</h2>
           <p className="muted">Pick the folders that hold your projects. datlas finds decisions in each project&apos;s <code>.datlas/</code> folder and any <code>.d2</code> or <code>.mmd</code> diagram files.</p>
           <FoldersPanel ws={ws} intro={false} />
@@ -123,13 +149,24 @@ export default function Home() {
       ) : project ? (
         <ProjectView
           project={project}
-          all={ws.entries}
-          problems={ws.problems}
+          all={entries}
+          problems={problems}
           selected={route.entry}
           onOpen={openEntry}
           view={route.view}
           onView={showProject}
         />
+      ) : ghRoot ? (
+        <main className="catalog">
+          {ghSync?.error ? (
+            <p className="error-text">{ghSync.error}</p>
+          ) : ghCopy && !ghSync?.syncing ? (
+            <p className="muted">{parseKey(ghRoot)!.owner}/{parseKey(ghRoot)!.repo} has no decisions in a .datlas/ folder at its root.</p>
+          ) : (
+            <p className="muted">Syncing {parseKey(ghRoot)!.owner}/{parseKey(ghRoot)!.repo}…</p>
+          )}
+          <p><button className="btn" onClick={goHome}>Back to projects</button></p>
+        </main>
       ) : lost ? (
         <main className="catalog">
           <p className="muted">That project isn&apos;t in your folders any more.</p>
@@ -139,7 +176,7 @@ export default function Home() {
         <main className="catalog"><p className="muted">Scanning…</p></main>
       ) : (
         <Catalog projects={projects} scanning={ws.scanning} onProject={(root) => goProject(root)} onEntry={(root, key) => goProject(root, key)}>
-          <GitHubSection state={gh.state} />
+          <GitHubSection state={gh.state} data={ghData} projects={projects} onOpen={(root) => goProject(root)} />
         </Catalog>
       )}
 

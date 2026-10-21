@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { parseKey } from "./repoKey";
 import { countStatus, type Status } from "./status";
 import type { Decision, DiagramFile, Problem, ScanResult } from "./types";
 
@@ -147,7 +148,8 @@ export function summarizeProjects(entries: Entry[], saved: string[]): Project[] 
   return [...m.entries()]
     .map(([root, items]) => {
       const container = saved.filter((s) => root === s || root.startsWith(s + "/")).sort((a, b) => b.length - a.length)[0];
-      const where = container ? (root === container ? base(root) : base(container) + root.slice(container.length)) : root;
+      const gh = parseKey(root);
+      const where = gh ? `${gh.owner}/${gh.repo}` : container ? (root === container ? base(root) : base(container) + root.slice(container.length)) : root;
       const decs = items.filter((e): e is Entry & { kind: "decision" } => e.kind === "decision");
       const status = countStatus(decs.map((e) => e.d));
       const pool = decs.length ? decs : items;

@@ -5,6 +5,7 @@ import { Card, StatusBar } from "./Card";
 import { EntryRow, describe } from "./EntryRow";
 import { Search } from "./icons";
 import { ago, plural, type Entry, type Project } from "@/lib/workspace";
+import { isGitHubKey } from "@/lib/repoKey";
 
 // First screen: one card per project that has something in it, plus search across every project.
 export function Catalog({ projects, scanning, onProject, onEntry, children }: {
@@ -28,7 +29,9 @@ export function Catalog({ projects, scanning, onProject, onEntry, children }: {
   }, []);
 
   const needle = q.trim().toLowerCase();
-  const shownProjects = needle ? projects.filter((p) => `${p.name} ${p.where}`.toLowerCase().includes(needle)) : projects;
+  // GitHub projects have their own section below; search covers both, each hit marked with where it came from.
+  const local = projects.filter((p) => !isGitHubKey(p.root));
+  const shownProjects = needle ? local.filter((p) => `${p.name} ${p.where}`.toLowerCase().includes(needle)) : local;
   const hits = useMemo(() => {
     if (!needle) return [];
     const out: { p: Project; e: Entry }[] = [];
@@ -48,7 +51,7 @@ export function Catalog({ projects, scanning, onProject, onEntry, children }: {
         </label>
       </div>
 
-      {projects.length === 0 && (
+      {local.length === 0 && (
         <p className="muted">{scanning ? "Scanning your folders…" : "No decisions or diagram files found in your folders yet. Decisions live in a project's .datlas/ folder."}</p>
       )}
 
@@ -83,7 +86,7 @@ export function Catalog({ projects, scanning, onProject, onEntry, children }: {
               <li key={e.key}>
                 <EntryRow
                   entry={e}
-                  sub={`${p.name} · ${describe(e)}`}
+                  sub={`${isGitHubKey(p.root) ? `${p.where} on GitHub` : p.name} · ${describe(e)}`}
                   aside={e.kind === "decision" ? e.d.system || "unsorted" : undefined}
                   onOpen={(key) => onEntry(p.root, key)}
                 />

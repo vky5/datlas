@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { DiagramCanvas } from "./DiagramCanvas";
 import type { Project } from "@/lib/workspace";
+import { decisionGraph } from "@/lib/graph";
+import { isGitHubKey } from "@/lib/repoKey";
 
 // How decisions connect: one box per system, stories above their details, dashed arrows for replacements.
-// The server writes it as D2 (same look as every other diagram). Boxes are links to the decision.
+// Written as D2 (same look as every other diagram); boxes are links to the decision. Local projects get it
+// from the server, which rescans the disk; GitHub projects are built here from the synced copy.
 export function GraphView({ project, highlight, tag, onOpen }: {
   project: Project;
   highlight: string[] | null; // decision ids to keep bright; null = no filter
@@ -17,7 +20,15 @@ export function GraphView({ project, highlight, tag, onOpen }: {
   const [empty, setEmpty] = useState(false);
   const body = JSON.stringify({ project: project.root, highlight });
 
+  const gh = isGitHubKey(project.root);
+  const ghSource = useMemo(() => {
+    if (!gh) return null;
+    const decisions = project.entries.flatMap((e) => (e.kind === "decision" ? [e.d] : []));
+    return decisions.length ? decisionGraph(decisions, project.root, highlight ? new Set(highlight) : null) : "";
+  }, [gh, project, highlight]);
+
   useEffect(() => {
+    if (gh) return;
     let cancelled = false;
     setError(null);
     fetch("/api/graph", { method: "POST", headers: { "Content-Type": "application/json" }, body })
@@ -34,7 +45,7 @@ export function GraphView({ project, highlight, tag, onOpen }: {
     return () => {
       cancelled = true;
     };
-  }, [body]);
+  }, [body, gh]);
 
   // Box links carry "#project=…&entry=…"; open them in place instead of navigating.
   const onClick = (ev: MouseEvent) => {
@@ -55,11 +66,11 @@ export function GraphView({ project, highlight, tag, onOpen }: {
           {tag ? ` Decisions without #${tag} are faded.` : " Pick a tag on the left to fade everything else."} Click a box to open it.
         </p>
       </header>
-      {empty ? (
+      {(gh ? ghSource === "" : empty) ? (
         <p className="muted">No decisions in this project yet.</p>
       ) : (
         <div onClick={onClick}>
-          <DiagramCanvas lang="d2" source={source} error={error} />
+          <DiagramCanvas lang="d2" source={gh ? ghSource : source} error={gh ? null : error} />
         </div>
       )}
     </div>

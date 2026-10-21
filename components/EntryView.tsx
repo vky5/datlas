@@ -7,6 +7,9 @@ import { External } from "./icons";
 import { ago, bytes, type Entry } from "@/lib/workspace";
 import { effectiveStatus, isCurrent } from "@/lib/status";
 import type { Decision } from "@/lib/types";
+import { getCopy } from "@/lib/copy";
+import { extractDiagram, splitDoc } from "@/lib/parse";
+import { isGitHubKey, parseKey, repoRoot } from "@/lib/repoKey";
 
 type Loaded = {
   text: string | null;
@@ -15,7 +18,19 @@ type Loaded = {
   path: string | null; // the diagram's own file, so D2 imports resolve beside it
 };
 
+// GitHub decisions come from the browser's synced copy; local ones from the server, which reads the disk.
+async function fromCopy(key: string): Promise<Loaded> {
+  const k = parseKey(key)!;
+  const f = (await getCopy(repoRoot(k.owner, k.repo)))?.files.find((x) => x.path === k.path);
+  if (!f) throw new Error("This file isn't in the synced copy any more. Sync the repo.");
+  const doc = splitDoc(f.text);
+  if (!doc) throw new Error("Missing or invalid front matter");
+  const { lang, source, text } = extractDiagram(doc.body);
+  return { text, lang, source, path: null };
+}
+
 async function fetchEntry(e: Entry): Promise<Loaded> {
+  if (isGitHubKey(e.key)) return fromCopy(e.key);
   const q = encodeURIComponent(e.key);
   if (e.kind === "decision") {
     const res = await fetch(`/api/decision?path=${q}`);
@@ -97,6 +112,7 @@ export function EntryView({ entry, all, onOpen, onTag, onSystem }: { entry: Entr
   };
 
   const d: Decision | null = entry.kind === "decision" ? entry.d : null;
+  const gh = parseKey(entry.key);
   const peers = all.filter((x) => x.projectRoot === entry.projectRoot);
   const status = d ? effectiveStatus(d) : null;
   // Other current decisions with the same tag, outside the links already shown above.
@@ -180,7 +196,11 @@ export function EntryView({ entry, all, onOpen, onTag, onSystem }: { entry: Entr
       <footer className="entry-foot">
         <code title={entry.key}>{entry.key}</code>
         <button className="btn" onClick={copy}>{copied ? "Copied" : "Copy path"}</button>
-        <a className="btn" href={`vscode://file${entry.key}`}><External /> Open in editor</a>
+        {gh ? (
+          <a className="btn" href={`https://github.com/${gh.owner}/${gh.repo}/blob/HEAD/${gh.path}`} target="_blank" rel="noreferrer"><External /> Open on GitHub</a>
+        ) : (
+          <a className="btn" href={`vscode://file${entry.key}`}><External /> Open in editor</a>
+        )}
       </footer>
     </article>
   );

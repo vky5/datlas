@@ -52,13 +52,13 @@ async function doSync(owner: string, repo: string, via: RepoCopy["via"]): Promis
 }
 
 // The copy's files as decisions, with keys like "gh:owner/repo/.datlas/x.md". GitHub has no per-file
-// modified time, so `mod` is 0; ordering inside a system comes from each decision's date.
+// modified time, so `mod` is the sync time: a new sync makes open decisions reload from the copy.
 export function parseCopy(c: RepoCopy): { decisions: Decision[]; problems: Problem[] } {
   const proj = { root: c.root, name: c.repo };
   const decisions: Decision[] = [];
   const problems: Problem[] = [];
   for (const f of c.files as RepoFile[]) {
-    const d = parseDecision(f.text, fileKey(c.owner, c.repo, f.path), 0, proj, problems);
+    const d = parseDecision(f.text, fileKey(c.owner, c.repo, f.path), c.syncedAt, proj, problems);
     if (d) decisions.push(d);
   }
   analyze(decisions, problems);
