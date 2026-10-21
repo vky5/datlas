@@ -251,3 +251,11 @@ button.link-chip:hover { border-color: var(--accent); }
 .graph .appendix-icon { display: none; } /* D2's link icon on each box; the whole box is already the link */
 .graph .svgwrap a:hover .shape > * { stroke-width: 3; }
 .graph .svgwrap { background: var(--surface); } /* the graph is drawn dark; only people's diagrams get the paper sheet */
+
+/* GitHub repos on the home screens */
+.gh { display: flex; flex-direction: column; gap: 10px; }
+.gh-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.gh-head h2 { font-size: 16px; }
+.onboard .gh { margin-bottom: 20px; }
+.onboard h2 { font-size: 16px; }
+.account { display: inline-flex; align-items: center; gap: 10px; }

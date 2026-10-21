@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Card, StatusBar } from "./Card";
 import { EntryRow, describe } from "./EntryRow";
 import { Search } from "./icons";
 import { ago, plural, type Entry, type Project } from "@/lib/workspace";
 
 // First screen: one card per project that has something in it, plus search across every project.
-export function Catalog({ projects, scanning, onProject, onEntry }: {
+export function Catalog({ projects, scanning, onProject, onEntry, children }: {
   projects: Project[];
   scanning: boolean;
   onProject: (root: string) => void;
   onEntry: (root: string, key: string) => void;
+  children?: ReactNode; // shown under the local projects (the GitHub section)
 }) {
   const [q, setQ] = useState("");
   const ref = useRef<HTMLInputElement>(null);
@@ -91,6 +92,7 @@ export function Catalog({ projects, scanning, onProject, onEntry }: {
           </ul>
         </section>
       )}
+      {!needle && children}
     </main>
   );
 }

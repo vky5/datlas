@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Catalog } from "@/components/Catalog";
 import { FoldersPanel } from "@/components/FoldersPanel";
+import { GitHubSection } from "@/components/GitHubSection";
 import { ProjectView } from "@/components/ProjectView";
-import { Diagram, Folder, Refresh } from "@/components/icons";
+import { Diagram, Folder, GitHub, Refresh } from "@/components/icons";
+import { useGitHub } from "@/lib/account";
 import { summarizeProjects, useWorkspace } from "@/lib/workspace";
 
 // The URL hash holds where you are: "#project=<root>&entry=<file>". Empty hash = the project list.
@@ -29,6 +31,7 @@ function writeRoute(r: Route, push: boolean) {
 
 export default function Home() {
   const ws = useWorkspace();
+  const gh = useGitHub();
   const [route, setRoute] = useState<Route>({ project: null, entry: null });
   const [foldersOpen, setFoldersOpen] = useState(false);
 
@@ -100,11 +103,20 @@ export default function Home() {
         <span className="grow" />
         <button className="icon" onClick={ws.rescan} aria-label="Rescan folders" title="Rescan folders"><Refresh /></button>
         <button className="btn" onClick={() => setFoldersOpen(true)}><Folder /> Folders</button>
+        {gh.state.status === "out" && <a className="btn" href="/api/auth/login"><GitHub /> Log in with GitHub</a>}
+        {gh.state.status === "in" && (
+          <span className="account">
+            <span className="muted small">@{gh.state.login}</span>
+            <button className="btn" onClick={gh.logout}>Log out</button>
+          </span>
+        )}
       </header>
 
       {needsFolders ? (
         <main className="onboard">
           <h1>See your architecture decisions in one place</h1>
+          <GitHubSection state={gh.state} />
+          <h2>Folders on this computer</h2>
           <p className="muted">Pick the folders that hold your projects. datlas finds decisions in each project&apos;s <code>.datlas/</code> folder and any <code>.d2</code> or <code>.mmd</code> diagram files.</p>
           <FoldersPanel ws={ws} intro={false} />
         </main>
@@ -126,7 +138,9 @@ export default function Home() {
       ) : projectRoot ? (
         <main className="catalog"><p className="muted">Scanning…</p></main>
       ) : (
-        <Catalog projects={projects} scanning={ws.scanning} onProject={(root) => goProject(root)} onEntry={(root, key) => goProject(root, key)} />
+        <Catalog projects={projects} scanning={ws.scanning} onProject={(root) => goProject(root)} onEntry={(root, key) => goProject(root, key)}>
+          <GitHubSection state={gh.state} />
+        </Catalog>
       )}
 
       {foldersOpen && (
