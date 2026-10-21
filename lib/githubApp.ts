@@ -22,13 +22,19 @@ function appJwt(): string {
   return `${unsigned}.${createSign("RSA-SHA256").update(unsigned).sign(privateKey(), "base64url")}`;
 }
 
+export class AppError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
 async function api<T>(path: string, token: string, method = "GET"): Promise<T> {
   const res = await fetch(API + path, {
     method,
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     signal: AbortSignal.timeout(15000),
   });
-  if (!res.ok) throw new Error(`GitHub answered ${res.status} for ${path}`);
+  if (!res.ok) throw new AppError(res.status, `GitHub answered ${res.status} for ${path}`);
   return res.json();
 }
 
@@ -59,7 +65,7 @@ export function appSlug(): Promise<string> {
   return slug;
 }
 
-// Tokens last an hour; reuse one until five minutes before it runs out.
+// Tokens last an hour; reuse one until five minutes before it runs out. 404 means the App was uninstalled.
 const tokens = new Map<number, { token: string; until: number }>();
 export async function installationToken(installationId: number): Promise<string> {
   const hit = tokens.get(installationId);
@@ -67,4 +73,16 @@ export async function installationToken(installationId: number): Promise<string>
   const t = await api<{ token: string; expires_at: string }>(`/app/installations/${installationId}/access_tokens`, appJwt(), "POST");
   tokens.set(installationId, { token: t.token, until: Date.parse(t.expires_at) - 5 * 60_000 });
   return t.token;
+}
+
+export const forgetToken = (installationId: number) => tokens.delete(installationId);
+
+export type InstalledRepo = { owner: string; repo: string; private: boolean };
+export async function installationRepos(token: string): Promise<InstalledRepo[]> {
+  const out: InstalledRepo[] = [];
+  for (let page = 1; ; page++) {
+    const b = await api<{ repositories: { name: string; private: boolean; owner: { login: string } }[] }>(`/installation/repositories?per_page=100&page=${page}`, token);
+    out.push(...b.repositories.map((r) => ({ owner: r.owner.login, repo: r.name, private: r.private })));
+    if (b.repositories.length < 100) return out;
+  }
 }
