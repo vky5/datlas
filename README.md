@@ -7,7 +7,7 @@ A viewer for architecture decisions and diagrams across your projects, from fold
 - **Local folders**: you choose which to read on the home page. The list is stored in this browser's localStorage under `directories`.
 - **GitHub repos**: log in with GitHub and pick repos for the datlas GitHub App. Only a `.datlas/` folder at the repo root is read.
 
-Live: https://datlas-web.vercel.app
+Live: https://datlas.blacktree.in
 
 ## Run
 
