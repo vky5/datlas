@@ -1,7 +1,8 @@
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { DIAGRAM_EXT } from "./server";
-import { analyze, readDecisions } from "./decisions";
+import { readDecisions } from "./decisions";
+import { analyze } from "./parse";
 import type { Decision, DiagramFile, Problem, ScanResult } from "./types";
 
 const SKIP = new Set(["node_modules", "vendor", "dist", "build", "target", "__pycache__", "venv", "coverage", "bower_components", "Pods"]);

@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import { fail, resolveDecisionFile } from "@/lib/server";
-import { extractDiagram, splitDoc } from "@/lib/decisions";
+import { extractDiagram, splitDoc } from "@/lib/parse";
 
 // One decision: its written reasoning plus the diagram source. The browser renders the diagram.
 export async function GET(request: Request) {
