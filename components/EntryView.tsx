@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { DiagramCanvas } from "./DiagramCanvas";
 import { External } from "./icons";
 import { ago, bytes, type Entry } from "@/lib/workspace";
@@ -186,7 +187,7 @@ export function EntryView({ entry, all, onOpen, onTag, onSystem }: { entry: Entr
           )}
           {body.text && (
             <div className="prose">
-              <ReactMarkdown>{body.text}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ table: (p) => <div className="table-wrap"><table {...p} /></div> }}>{body.text}</ReactMarkdown>
             </div>
           )}
           {!stale && d && !body.text && <p className="muted">No written reasoning in this decision.</p>}
