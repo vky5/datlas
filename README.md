@@ -14,6 +14,14 @@ Live: https://datlas.blacktree.in
     npm install
     npm run dev        # http://127.0.0.1:7777 (localhost only)
 
+Or install it as a command:
+
+    make install       # builds, copies the app to ~/.local/share/datlas, adds ~/.local/bin/datlas
+    datlas             # starts in the background on http://127.0.0.1:7777, local folders on; DATLAS_PORT=8000 datlas for another port
+    datlas stop        # also: status, restart, logs, fg (stay attached to the terminal)
+
+The installed copy links back to this repo's `.env.local` and `secrets/` for GitHub login, so run `make install` again if the repo moves. `make uninstall` removes it.
+
 Both D2 and Mermaid render in the browser. D2 uses D2.js (d2 compiled to WebAssembly), so no `d2` binary is needed; its ~6 MB bundle loads the first time a D2 diagram is shown.
 
 Try it: add `examples/scheduler-demo` as a folder, open the project, and pick a system from the overview.

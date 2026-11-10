@@ -1,0 +1,77 @@
+#!/bin/sh
+# Starts the installed datlas viewer. Put here by `make install`.
+APP_DIR="${DATLAS_HOME:-$HOME/.local/share/datlas}"
+PORT="${DATLAS_PORT:-7777}"
+# where the running viewer keeps its process number and its log
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/datlas"
+PID_FILE="$STATE_DIR/pid"
+LOG_FILE="$STATE_DIR/log"
+
+if [ ! -f "$APP_DIR/server.js" ]; then
+  echo "datlas: nothing installed in $APP_DIR. Run 'make install' in the datlas repo." >&2
+  exit 1
+fi
+
+# prints the process number of the running viewer, or fails if there is none
+running_pid() {
+  [ -f "$PID_FILE" ] || return 1
+  pid=$(cat "$PID_FILE")
+  [ -n "$pid" ] || return 1
+  # the number may have been handed to some other program since, so check it is still ours
+  ps -p "$pid" -o args= 2>/dev/null | grep -Eq "next-server|server\.js" || return 1
+  echo "$pid"
+}
+
+start() {
+  if pid=$(running_pid); then
+    echo "datlas: already running (pid $pid). 'datlas stop' to stop it."
+    return 0
+  fi
+  mkdir -p "$STATE_DIR"
+  ( cd "$APP_DIR" && HOSTNAME=127.0.0.1 PORT="$PORT" exec nohup node server.js >"$LOG_FILE" 2>&1 ) &
+  echo $! >"$PID_FILE"
+  # give it a moment so a failed start (port taken, say) shows up here
+  sleep 1
+  if ! running_pid >/dev/null; then
+    rm -f "$PID_FILE"
+    echo "datlas: failed to start. Last lines of $LOG_FILE:" >&2
+    tail -n 20 "$LOG_FILE" >&2
+    return 1
+  fi
+  echo "datlas: http://127.0.0.1:$PORT  ('datlas stop' to stop)"
+}
+
+stop() {
+  if ! pid=$(running_pid); then
+    rm -f "$PID_FILE"
+    echo "datlas: not running"
+    return 0
+  fi
+  kill "$pid"
+  rm -f "$PID_FILE"
+  echo "datlas: stopped"
+}
+
+case "${1:-start}" in
+  start) start ;;
+  stop) stop ;;
+  restart) stop && start ;;
+  status)
+    if pid=$(running_pid); then
+      echo "datlas: running (pid $pid), log in $LOG_FILE"
+    else
+      echo "datlas: not running"
+      exit 1
+    fi
+    ;;
+  logs) exec tail -n 50 -f "$LOG_FILE" ;;
+  # stay attached to this terminal, the old behaviour
+  fg)
+    echo "datlas: http://127.0.0.1:$PORT  (Ctrl+C to stop)"
+    cd "$APP_DIR" && HOSTNAME=127.0.0.1 PORT="$PORT" exec node server.js
+    ;;
+  *)
+    echo "usage: datlas [start|stop|restart|status|logs|fg]" >&2
+    exit 2
+    ;;
+esac
